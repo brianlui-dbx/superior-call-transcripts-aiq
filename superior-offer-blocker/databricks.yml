@@ -25,7 +25,7 @@
 # =============================================================================
 
 bundle:
-  name: superior-offer-blocker
+  name: superior-offer-blocker-aiq
 
 # -----------------------------------------------------------------------------
 # Variables: every environment-specific / run-specific value lives here, not in
