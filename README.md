@@ -45,14 +45,17 @@ dim_salesforce_opportunity ─────────────────�
                                                 │
                                                 ▼
                                gold_opportunity_enrichment
-                                  │  ai_classify: codes 4A–4F
-                                  │  ai_extract: quoted/competitor rates
+                                  │  ai_query: codes 4A–4F
+                                  │  ai_query: quoted/competitor rates
                                   ▼
                                   gold_offer_blockers
-                                  │  ai_classify: disposition
-lookup_qualifier_config ──────────┤  ai_classify: qualifier
+                                  │  ai_query: disposition
+lookup_qualifier_config ──────────┤  ai_query: qualifier
                                   ▼
                            gold_offer_blocker_summary
+
+(The CORE gold transforms call a single configurable ${model_endpoint}
+via ai_query, seeding each request with the prompt_offer_blocker text.)
 
 Enhancements:
   silver_transcript_sf_joined ──▶ gold_call_enrichment_enh
@@ -79,19 +82,28 @@ Enhancements:
 
 The current implementation uses:
 
-- `ai_classify` for blocker codes, dispositions, qualifiers, and call topics.
-- `ai_extract` for quoted rates, competitor rates, and CRM-style entities.
+- `ai_query` against the configurable `${model_endpoint}` (default
+  `databricks-claude-opus-4-8`) for the CORE gold path — blocker codes 4A–4F,
+  quoted/competitor rate extraction, disposition, and qualifier — each request
+  seeded with the shared prompt from the `prompt_offer_blocker` table and
+  constrained to a strict JSON schema. This replaced the earlier
+  `ai_classify`/`ai_extract` calls in those transforms.
+- `ai_query` for the structured follow-up email enhancement.
+- `ai_classify` for call topics and `ai_extract` for CRM-style entities in the
+  `_enh` call-coaching transform.
 - `ai_analyze_sentiment` for customer tone.
 - `ai_summarize` and `ai_mask` for concise, PII-safe call summaries.
 - `ai_similarity` and `ai_fix_grammar` for coaching-oriented enrichment.
-- `ai_query` with `databricks-claude-opus-4-8` for structured follow-up emails.
 - `ai_top_drivers` in the exploratory notebook for contribution analysis.
+
+Swapping the model for the entire CORE path is a single change to the
+`model_endpoint` bundle variable — no SQL edits required.
 
 ## Analytics experiences
 
 ### Genie agent
 
-- Name: **Offer Blocker Analytics**
+- Name: **Offer Blocker Analytics_aiq**
 - Workspace ID: `01f19cba5b581c9a81e28d0502069ec6`
 - Version-controlled definition: [`superior-offer-blocker/genie/genie_agent.json`](superior-offer-blocker/genie/genie_agent.json)
 - Coverage: six curated tables, six sample questions, 17 example SQL questions, consolidated instructions, and a benchmark.
@@ -100,7 +112,7 @@ The setup job provisions or updates the agent from the checked-in JSON.
 
 ### AI/BI dashboard
 
-- Name: **Sales Call Coaching — Offer Blocker Intelligence**
+- Name: **Sales Call Coaching — Offer Blocker Intelligence_aiq**
 - Source workspace ID: `01f1a70334b0114384592a2536bbe4f2`
 - Version-controlled definition: [`superior-offer-blocker/src/dashboards/offer_blocker.lvdash.json`](superior-offer-blocker/src/dashboards/offer_blocker.lvdash.json)
 - Pages: Executive Overview, Call Intelligence & Coaching, Global Filters, and AI Insights.
@@ -155,7 +167,8 @@ The `setup_job` creates or refreshes:
 - The bundled sample transcript in the landing directory.
 - `dim_salesforce_opportunity`, a deterministic synthetic CRM mapping for the demo.
 - `lookup_qualifier_config`, which contains code-specific labels and instructions for qualifier classification.
-- The **Offer Blocker Analytics** Genie agent from the checked-in definition.
+- The one-row `prompt_offer_blocker` table, seeded from `seeds/offer_blocker_prompt_v6.txt`, whose text every CORE `ai_query` call prepends to its request.
+- The **Offer Blocker Analytics_aiq** Genie agent from the checked-in definition.
 
 ## Bundle configuration
 
@@ -164,13 +177,14 @@ The default development configuration uses:
 | Variable | Default |
 |---|---|
 | `catalog` | `dbw_brlui_stable` |
-| `schema` | `call_transcripts_poc` |
+| `schema` | `call_transcripts_poc_aiq` |
+| `model_endpoint` | `databricks-claude-opus-4-8` |
 | `warehouse_id` | `50ad3a9993503e5b` |
 | `prompt_version` | `v6` |
 | `region_1` / `region_2` | `New York` / `New Jersey` |
 | `input_multiline` | `true` |
 
-The bundle still declares `model_endpoint` and `batch_label` for compatibility, but the current live pipeline does not pass those values into its configuration. The follow-up-email model is currently specified directly in SQL.
+`model_endpoint` is now published into the pipeline configuration and consumed by every CORE `ai_query` call as `${model_endpoint}`, so the model can be swapped with no SQL change. Note: the batch-supported endpoint requirement still applies (see the variable's description in `databricks.yml`). `batch_label` remains declared but is not passed into the pipeline; the analyst output derives its `Batch` column from the source filename.
 
 ## Validate and run
 

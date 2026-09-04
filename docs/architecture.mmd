@@ -9,7 +9,7 @@ flowchart TB
         direction LR
         SETUP["setup.py"] --> SF["Synthetic Salesforce<br/>opportunities"]
         SETUP --> QUAL["Qualifier lookup<br/>labels + instructions"]
-        GENIE_SETUP["genie_setup.py"] --> GENIE["Offer Blocker Analytics<br/>Genie agent"]
+        GENIE_SETUP["genie_setup.py"] --> GENIE["Offer Blocker Analytics_aiq<br/>Genie agent"]
     end
 
     subgraph PLATFORM["Databricks Lakehouse · serverless Spark Declarative Pipeline"]
@@ -20,13 +20,13 @@ flowchart TB
         GOLD --> ENH
     end
 
-    AIF["Databricks AI Functions<br/>classify · extract · sentiment · summarize · mask<br/>similarity · fix grammar · query"]
+    AIF["Databricks AI Functions<br/>CORE gold: ai_query via ·model_endpoint·<br/>enhancements: classify · extract · sentiment<br/>summarize · mask · similarity · fix grammar"]
     EXPLORE["ai_top_drivers<br/>exploration"]
 
     subgraph EXPERIENCE["Analytics & action"]
         direction LR
         TABLES["Governed Delta tables<br/>SQL consumers"]
-        DASH["AI/BI Dashboard<br/>Sales Call Coaching —<br/>Offer Blocker Intelligence"]
+        DASH["AI/BI Dashboard<br/>Sales Call Coaching —<br/>Offer Blocker Intelligence_aiq"]
         GENIE_OUT["Curated natural-language<br/>analytics"]
         DASH -. "Ask Genie" .-> GENIE_OUT
     end

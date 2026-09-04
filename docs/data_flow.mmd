@@ -16,9 +16,9 @@ flowchart TD
     end
 
     subgraph BLOCKERS["Gold · offer-blocker analysis"]
-        OPPS["gold_opportunity_enrichment<br/>ai_classify candidate codes<br/>ai_extract quoted + competitor rates"]
+        OPPS["gold_opportunity_enrichment<br/>ai_query candidate codes<br/>ai_query quoted + competitor rates"]
         QUAL["lookup_qualifier_config"]
-        FINDINGS["gold_offer_blockers<br/>ai_classify disposition<br/>ai_classify qualifier<br/>confidence + evidence"]
+        FINDINGS["gold_offer_blockers<br/>ai_query disposition<br/>ai_query qualifier<br/>confidence + evidence"]
         SUMMARY["gold_offer_blocker_summary<br/>final analyst-facing output"]
         OPPS --> FINDINGS
         QUAL --> FINDINGS
@@ -31,8 +31,8 @@ flowchart TD
     end
 
     subgraph EXPERIENCE["Consumption"]
-        DASH["Sales Call Coaching —<br/>Offer Blocker Intelligence<br/>4 dashboard pages"]
-        GENIE["Offer Blocker Analytics<br/>curated Genie agent"]
+        DASH["Sales Call Coaching —<br/>Offer Blocker Intelligence_aiq<br/>4 dashboard pages"]
+        GENIE["Offer Blocker Analytics_aiq<br/>curated Genie agent"]
         EXPLORE["ai_top_drivers exploration<br/>contribution analysis"]
     end
 
