@@ -1,0 +1,1249 @@
+{
+  "version": 2,
+  "config": {
+    "sample_questions": [
+      {
+        "id": "10000000000000000000000000000001",
+        "question": [
+          "What are the most common offer blocker codes?"
+        ]
+      },
+      {
+        "id": "10000000000000000000000000000002",
+        "question": [
+          "How many opportunities have a hard blocker?"
+        ]
+      },
+      {
+        "id": "10000000000000000000000000000003",
+        "question": [
+          "Show the count of blockers by Salesforce stage and code"
+        ]
+      },
+      {
+        "id": "10000000000000000000000000000004",
+        "question": [
+          "Which opportunities had a rate (4A) blocker, and what was the evidence?"
+        ]
+      },
+      {
+        "id": "10000000000000000000000000000005",
+        "question": [
+          "What is the distribution of customer call tone?"
+        ]
+      },
+      {
+        "id": "10000000000000000000000000000006",
+        "question": [
+          "List opportunities where the customer sentiment was negative"
+        ]
+      }
+    ]
+  },
+  "data_sources": {
+    "tables": [
+      {
+        "identifier": "dbw_brlui_stable.call_transcripts_poc.dim_salesforce_opportunity",
+        "description": [
+          "Salesforce opportunity dimension table. Provides region (New York, New Jersey, Massachusetts, Connecticut, Ontario), contact phone, opportunity creation timestamp, and stage name. Join to other tables on opportunity_id."
+        ],
+        "column_configs": [
+          {
+            "column_name": "contact_phone",
+            "description": [
+              "Phone number of the primary contact on the opportunity."
+            ],
+            "synonyms": [
+              "phone",
+              "phone number",
+              "contact number",
+              "customer phone"
+            ],
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "created_datetime",
+            "description": [
+              "Timestamp when the opportunity was created in Salesforce."
+            ],
+            "synonyms": [
+              "created date",
+              "creation date",
+              "open date",
+              "opportunity date",
+              "date created"
+            ],
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "opportunity_id",
+            "description": [
+              "Salesforce Opportunity ID. Primary key. Join to other tables on this column."
+            ],
+            "synonyms": [
+              "opp id",
+              "opportunity id",
+              "deal id",
+              "salesforce id",
+              "opp"
+            ],
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "region",
+            "description": [
+              "Geographic region: New York, New Jersey, Massachusetts, Connecticut, or Ontario."
+            ],
+            "synonyms": [
+              "territory",
+              "area",
+              "geography",
+              "market",
+              "location"
+            ],
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "stage_name",
+            "description": [
+              "Salesforce pipeline stage: Open, Closed Won, or Closed Lost."
+            ],
+            "synonyms": [
+              "pipeline stage",
+              "sales stage",
+              "deal stage",
+              "opportunity stage",
+              "status"
+            ],
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          }
+        ]
+      },
+      {
+        "identifier": "dbw_brlui_stable.call_transcripts_poc.gold_call_enrichment_enh",
+        "description": [
+          "Per-call AI enrichment: sentiment tone, topic classification, extracted customer entities (name, supplier, tank size, city, rates), call summary, PII-masked summary, objection proximity score, and polished transcript text. One row per call; an opportunity can have multiple calls."
+        ]
+      },
+      {
+        "identifier": "dbw_brlui_stable.call_transcripts_poc.gold_followup_email_enh",
+        "description": [
+          "One AI-drafted follow-up email per opportunity. The email_json column contains a JSON string with the email subject, body, and other fields. email_error captures any generation errors."
+        ],
+        "column_configs": [
+          {
+            "column_name": "email_error",
+            "description": [
+              "Error message if the email generation failed; NULL when successful."
+            ],
+            "synonyms": [
+              "email failure",
+              "generation error",
+              "email generation failure",
+              "failed email"
+            ]
+          },
+          {
+            "column_name": "email_json",
+            "description": [
+              "AI-drafted follow-up email in JSON format. Contains fields like subject, body, recipient, and tone. Parse with from_json() or get_json_object() for specific fields."
+            ],
+            "synonyms": [
+              "follow-up email",
+              "draft email",
+              "email content",
+              "email body",
+              "email text"
+            ]
+          },
+          {
+            "column_name": "opportunity_id",
+            "description": [
+              "Salesforce Opportunity ID linking this email to a specific sales deal."
+            ],
+            "synonyms": [
+              "opp id",
+              "deal id",
+              "salesforce id",
+              "opportunity"
+            ]
+          },
+          {
+            "column_name": "stage_name",
+            "description": [
+              "Salesforce pipeline stage at the time the email was drafted (Open, Closed Won, Closed Lost)."
+            ],
+            "synonyms": [
+              "pipeline stage",
+              "sales stage",
+              "deal stage",
+              "opportunity stage"
+            ]
+          }
+        ]
+      },
+      {
+        "identifier": "dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary",
+        "description": [
+          "Main analytical table for offer blocker analysis. One row per coded candidate issue found in a sales call. Contains the blocker code, disposition (hard_blocker, friction, mention_only, resolved, insufficient_evidence), qualifier sub-classification, confidence level, supporting evidence, and final quoted rate. Column names contain spaces and require backticks. Join to other tables via `Opp ID`."
+        ],
+        "column_configs": [
+          {
+            "column_name": "Batch",
+            "exclude": true
+          },
+          {
+            "column_name": "Code",
+            "description": [
+              "Blocker code (4A-4F) or NULL if no specific blocker was identified."
+            ],
+            "synonyms": [
+              "blocker code",
+              "issue code",
+              "barrier code",
+              "4A",
+              "4B",
+              "4C",
+              "4D",
+              "4E",
+              "4F"
+            ],
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "Code Name",
+            "description": [
+              "Human-readable blocker category name (e.g., '4B. Ancillary fees barrier')."
+            ],
+            "synonyms": [
+              "blocker name",
+              "blocker category",
+              "issue name",
+              "barrier name",
+              "code description"
+            ],
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "Confidence",
+            "description": [
+              "AI confidence level in the blocker classification."
+            ],
+            "synonyms": [
+              "certainty",
+              "confidence level",
+              "evidence strength",
+              "reliability"
+            ],
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "Disposition",
+            "description": [
+              "Impact classification: hard_blocker (deal-killer), friction (slowed deal), mention_only (raised, no effect), resolved (concern corrected), insufficient_evidence."
+            ],
+            "synonyms": [
+              "impact",
+              "classification",
+              "blocker type",
+              "severity type",
+              "outcome",
+              "hard blocker",
+              "friction",
+              "mention only",
+              "resolved"
+            ],
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "Evidence",
+            "description": [
+              "Extracted quote or summary from the transcript supporting this finding."
+            ],
+            "synonyms": [
+              "quote",
+              "transcript quote",
+              "supporting quote",
+              "evidence text",
+              "proof",
+              "example"
+            ],
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "Key",
+            "exclude": true
+          },
+          {
+            "column_name": "Opp ID",
+            "description": [
+              "Salesforce Opportunity ID. Join key to other tables. Use backticks: `Opp ID`."
+            ],
+            "synonyms": [
+              "opportunity id",
+              "deal id",
+              "salesforce id",
+              "opp",
+              "opportunity"
+            ],
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "Primary",
+            "description": [
+              "'Yes' if this is the primary/most impactful blocker for the opportunity; NULL otherwise."
+            ],
+            "synonyms": [
+              "main blocker",
+              "top blocker",
+              "primary issue",
+              "most impactful blocker",
+              "key blocker"
+            ],
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "Qualifier",
+            "description": [
+              "Sub-classification within the blocker code (e.g., rental/objection under 4B). See lookup_qualifier_config for definitions."
+            ],
+            "synonyms": [
+              "sub-code",
+              "sub-classification",
+              "blocker sub-type",
+              "fee type",
+              "ground",
+              "qualifier type"
+            ],
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "Salesforce Stage",
+            "description": [
+              "Pipeline stage: Open, Closed Won, or Closed Lost."
+            ],
+            "synonyms": [
+              "pipeline stage",
+              "sales stage",
+              "deal stage",
+              "opportunity stage",
+              "SF stage"
+            ],
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "Version",
+            "exclude": true
+          },
+          {
+            "column_name": "final_quoted_rate",
+            "description": [
+              "Struct with the final rate offered: rate_type, per_unit, fixed_amount, variable_amount, amount. Access fields with dot notation (e.g., final_quoted_rate.amount)."
+            ]
+          }
+        ]
+      },
+      {
+        "identifier": "dbw_brlui_stable.call_transcripts_poc.lookup_qualifier_config",
+        "description": [
+          "Reference table for blocker qualifier sub-codes. One row per blocker code prefix (4A through 4F). labels_json is a JSON object mapping qualifier values to their definitions. instructions describes how to apply each code."
+        ],
+        "column_configs": [
+          {
+            "column_name": "code_prefix",
+            "synonyms": [
+              "blocker prefix",
+              "code prefix",
+              "code group",
+              "blocker group"
+            ],
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "instructions",
+            "synonyms": [
+              "coding instructions",
+              "how to apply",
+              "application rules",
+              "code guidance"
+            ],
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "labels_json",
+            "synonyms": [
+              "qualifier labels",
+              "sub-code definitions",
+              "qualifier definitions",
+              "label map"
+            ],
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          }
+        ]
+      },
+      {
+        "identifier": "dbw_brlui_stable.call_transcripts_poc.silver_opportunity_dialogue",
+        "description": [
+          "Full concatenated transcript text per opportunity. Use for keyword/phrase searching across sales conversations. Contains segment count and speaker position metadata."
+        ],
+        "column_configs": [
+          {
+            "column_name": "_source_file",
+            "exclude": true
+          },
+          {
+            "column_name": "distinct_pos",
+            "exclude": true
+          },
+          {
+            "column_name": "max_pos",
+            "exclude": true
+          },
+          {
+            "column_name": "opportunity_id",
+            "synonyms": [
+              "opp id",
+              "deal id",
+              "salesforce id",
+              "opportunity"
+            ],
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "seg_count",
+            "synonyms": [
+              "segment count",
+              "number of segments",
+              "call segments",
+              "dialogue segments"
+            ],
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "stage_name",
+            "synonyms": [
+              "pipeline stage",
+              "sales stage",
+              "deal stage",
+              "opportunity stage"
+            ],
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "transcript_text",
+            "synonyms": [
+              "transcript",
+              "call transcript",
+              "conversation text",
+              "dialogue text",
+              "call text",
+              "full transcript"
+            ],
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          }
+        ]
+      }
+    ]
+  },
+  "instructions": {
+    "text_instructions": [
+      {
+        "id": "30000000000000000000000000000001",
+        "content": [
+          "You are a sales-operations analyst assistant for Superior Plus Propane analyzing inside-sales call transcripts from sales-qualified-leads (SQLs).\n",
+          "\n",
+          "DOMAIN TERMS: 'Offer blocker' = a reason a customer did not accept an offer. 'Opportunity' = one sales deal (`Opp ID` in gold_offer_blocker_summary or `opportunity_id` elsewhere).\n",
+          "\n",
+          "BLOCKER CODES: 4A=Rate Competitiveness, 4B=Ancillary Fees (fee-type/ground qualifier, e.g. rental/objection), 4C=Commercial Model, 4D=Contract Mechanics, 4E=Availability/Serviceability, 4F=Promotion Ineligibility. Definitions in lookup_qualifier_config.\n",
+          "\n",
+          "ROUTING: price line→4A; bolt-on charge→4B; deal shape→4C; binding mechanics→4D; can't provide→4E; denied promo→4F. Fees DURING service→4B; fees for LEAVING→4D.\n",
+          "\n",
+          "DISPOSITIONS: hard_blocker=deal-killer; friction=stall/drag; mention_only=no effect (most common); resolved=wrong premise corrected; latent=hypothesis only (NEVER a blocker); insufficient_evidence=Low confidence only.\n",
+          "\n",
+          "COUNTING RULES: Only hard_blocker and friction are real blockers. Use COUNT(DISTINCT `Opp ID`) for opportunity counts. Exclude Code IS NULL when counting blockers. Primary='Yes' marks the single most impactful blocker per opportunity.\n",
+          "\n",
+          "TABLES: gold_offer_blocker_summary=main analytical table (column names need backticks: `Opp ID`, `Salesforce Stage`, `Code Name`, `Code`, `Primary`, `Qualifier`, `Disposition`, `Confidence`, `Evidence`; also final_quoted_rate struct). gold_call_enrichment_enh=per-call AI enrichment (call_tone, call_topic, entities, call_summary, objection_proximity). gold_followup_email_enh=one email per opp (email_json). dim_salesforce_opportunity=Salesforce dim (opportunity_id, stage_name, region, contact_phone, created_datetime). silver_opportunity_dialogue=full transcript per opp. lookup_qualifier_config=qualifier reference.\n",
+          "\n",
+          "JOIN KEY: gold_offer_blocker_summary.`Opp ID` = opportunity_id in all other tables.\n",
+          "\n",
+          "ANSWER RULES:\n",
+          "- Return detail rows unless aggregation is explicitly requested.\n",
+          "- Use COUNT(DISTINCT `Opp ID`) for opportunity counts; COUNT(*) for finding/row counts. When the user says 'show the counts' alongside a GROUP BY, default to COUNT(*) unless they specifically say 'opportunity count' or 'number of opportunities'.\n",
+          "- Use exact equality (=) for categorical columns (region, stage, call_tone).\n",
+          "- Use DATE_FORMAT(col,'yyyy-MM') for monthly grouping.\n",
+          "\n",
+          "CODE IS NOT NULL RULES (critical — read carefully):\n",
+          "- Apply Code IS NOT NULL ONLY when the user explicitly asks about 'blockers', 'coded issues', or 'blocker codes'.\n",
+          "- Do NOT add Code IS NOT NULL when the user asks for 'findings', 'offer blocker summary findings', 'dispositions', or 'offer blocker dispositions'. These phrases mean ALL rows in gold_offer_blocker_summary regardless of whether Code is populated.\n",
+          "- 'Offer blocker dispositions' includes ALL disposition values — do NOT add Code IS NOT NULL.\n",
+          "- The table name 'gold_offer_blocker_summary' contains the words 'offer blocker' but that does NOT mean every query against it should filter Code IS NOT NULL.\n",
+          "\n",
+          "NULL FILTERING RULES:\n",
+          "- Do NOT add IS NOT NULL filters on GROUP BY columns or SELECT columns (e.g., region, call_topic, Disposition, Code Name) unless the user explicitly asks to exclude nulls.\n",
+          "- Null values are valid data and must not be silently excluded.\n",
+          "\n",
+          "COLUMN INCLUSION RULES:\n",
+          "- Always include both `Code Name` AND `Disposition` in blocker detail queries, especially when deriving severity labels from Disposition.\n",
+          "\n",
+          "SEVERITY AND STATUS LABELS:\n",
+          "- Severity: hard_blocker='High Severity', friction='Medium Severity', else='Low Severity'.\n",
+          "- Blocker status labels: hard_blocker/friction='YES - counts as blocker', latent='NO - hypothesis tier only', others='NO - context tier only'.\n",
+          "\n",
+          "CODE FILTERING RULES:\n",
+          "- When filtering by a specific blocker code (e.g., '4A', '4B'), use WHERE Code = '<code>' directly on gold_offer_blocker_summary.\n",
+          "- Do NOT join to silver_opportunity_dialogue or use RLIKE/regex on transcript text to identify blocker categories — the Code column already captures the classification.\n",
+          "\n",
+          "- Tiebreaker (friction/resolved/mention_only): concession granted→friction; wrong premise corrected→resolved; accepted with no drag→mention_only."
+        ]
+      }
+    ],
+    "example_question_sqls": [
+      {
+        "id": "01f19cba5b581c9a81e28d0502069ec7",
+        "question": [
+          "Show hard blockers for a specific region and Salesforce stage using exact equality filters"
+        ],
+        "sql": [
+          "SELECT b.`Opp ID`, b.`Code Name`, b.Disposition, b.Evidence, d.region, b.`Salesforce Stage`\n",
+          "FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary b\n",
+          "JOIN dbw_brlui_stable.call_transcripts_poc.dim_salesforce_opportunity d\n",
+          "  ON b.`Opp ID` = d.opportunity_id\n",
+          "WHERE d.region = 'New York'\n",
+          "  AND b.`Salesforce Stage` = 'Closed Lost'\n",
+          "  AND b.Disposition = 'hard_blocker'\n",
+          "  AND b.Code IS NOT NULL"
+        ],
+        "usage_guidance": [
+          "Use exact equality (=) for categorical entity-matched columns like region, Salesforce stage, call_tone, and call_topic. Do not use ILIKE or LIKE for these columns. Do not add IS NOT NULL on display columns like Code Name, Disposition, or Evidence."
+        ]
+      },
+      {
+        "id": "01f1a6f043921e198e4e5d075b706178",
+        "question": [
+          "Which regions have the most hard blockers?"
+        ],
+        "sql": [
+          "SELECT d.region, COUNT(DISTINCT b.`Opp ID`) AS opps_with_hard_blockers\n",
+          "FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary b\n",
+          "JOIN dbw_brlui_stable.call_transcripts_poc.dim_salesforce_opportunity d\n",
+          "  ON b.`Opp ID` = d.opportunity_id\n",
+          "WHERE b.Disposition = 'hard_blocker'\n",
+          "  AND b.Code IS NOT NULL\n",
+          "GROUP BY d.region\n",
+          "ORDER BY opps_with_hard_blockers DESC"
+        ],
+        "usage_guidance": [
+          "Use this query to identify which regions have the highest concentration of deal-killing blockers. Useful for regional performance reviews and coaching prioritization."
+        ]
+      },
+      {
+        "id": "01f1a6f0439310b5a072150d33d67c17",
+        "question": [
+          "Show the follow-up email for a specific opportunity"
+        ],
+        "sql": [
+          "SELECT e.opportunity_id, e.stage_name, e.email_json\n",
+          "FROM dbw_brlui_stable.call_transcripts_poc.gold_followup_email_enh e\n",
+          "WHERE e.opportunity_id = '<opportunity_id>'"
+        ],
+        "usage_guidance": [
+          "Use this query to retrieve the AI-drafted follow-up email for a specific opportunity. Replace <opportunity_id> with the actual Salesforce Opportunity ID."
+        ]
+      },
+      {
+        "id": "01f1a6f043931320899a3ea038c719b2",
+        "question": [
+          "What are the most common blocker codes across all opportunities?"
+        ],
+        "sql": [
+          "SELECT `Code Name`, COUNT(DISTINCT `Opp ID`) AS affected_opportunities\n",
+          "FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary\n",
+          "WHERE Code IS NOT NULL\n",
+          "GROUP BY `Code Name`\n",
+          "ORDER BY affected_opportunities DESC"
+        ],
+        "usage_guidance": [
+          "Use this query to see a ranked frequency table of blocker codes across all opportunities. Helps identify the most prevalent offer barriers in the pipeline."
+        ]
+      },
+      {
+        "id": "01f1a6f04393154c945d4544097e4765",
+        "question": [
+          "Show opportunities with their blocker details, call tone, and region"
+        ],
+        "sql": [
+          "SELECT b.`Opp ID`, b.`Salesforce Stage`, b.`Code Name`, b.Disposition, b.Qualifier,\n",
+          "       c.call_tone, c.call_topic, d.region\n",
+          "FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary b\n",
+          "LEFT JOIN dbw_brlui_stable.call_transcripts_poc.gold_call_enrichment_enh c\n",
+          "  ON b.`Opp ID` = c.opportunity_id\n",
+          "LEFT JOIN dbw_brlui_stable.call_transcripts_poc.dim_salesforce_opportunity d\n",
+          "  ON b.`Opp ID` = d.opportunity_id\n",
+          "WHERE b.Code IS NOT NULL"
+        ],
+        "usage_guidance": [
+          "Use this query to cross-reference blocker findings with call sentiment and geographic region. Useful for understanding whether negative tone correlates with specific blocker types or regions."
+        ]
+      },
+      {
+        "id": "01f1a6f0439317a8b3b46e4422536294",
+        "question": [
+          "Search transcripts for mentions of a keyword"
+        ],
+        "sql": [
+          "SELECT opportunity_id, stage_name,\n",
+          "       SUBSTRING(transcript_text, GREATEST(1, LOCATE('<keyword>', transcript_text) - 100), 250) AS context\n",
+          "FROM dbw_brlui_stable.call_transcripts_poc.silver_opportunity_dialogue\n",
+          "WHERE LOWER(transcript_text) LIKE '%<keyword>%'"
+        ],
+        "usage_guidance": [
+          "Use this query to search full call transcripts for any keyword or phrase. Replace <keyword> with the term to search. Returns surrounding context from the transcript."
+        ]
+      },
+      {
+        "id": "01f1a6f043931a129198adcafe707038",
+        "question": [
+          "What is the distribution of call tones by Salesforce stage?"
+        ],
+        "sql": [
+          "SELECT c.stage_name, c.call_tone, COUNT(*) AS call_count\n",
+          "FROM dbw_brlui_stable.call_transcripts_poc.gold_call_enrichment_enh c\n",
+          "GROUP BY c.stage_name, c.call_tone\n",
+          "ORDER BY c.stage_name, call_count DESC"
+        ],
+        "usage_guidance": [
+          "Use this query to understand how call sentiment varies across Salesforce pipeline stages. Useful for identifying whether certain stages correlate with more negative customer interactions."
+        ]
+      },
+      {
+        "id": "01f1a6f043931c41bd7c64d1062cefef",
+        "question": [
+          "Which opportunities have both a hard blocker and negative call tone?"
+        ],
+        "sql": [
+          "SELECT DISTINCT b.`Opp ID`, b.`Code Name`, b.Disposition, c.call_tone, c.call_summary\n",
+          "FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary b\n",
+          "JOIN dbw_brlui_stable.call_transcripts_poc.gold_call_enrichment_enh c\n",
+          "  ON b.`Opp ID` = c.opportunity_id\n",
+          "WHERE b.Disposition = 'hard_blocker'\n",
+          "  AND c.call_tone = 'negative'"
+        ],
+        "usage_guidance": [
+          "Use this query to find opportunities where both a hard blocker was coded and the call tone was negative, indicating the strongest signals of deal risk."
+        ]
+      },
+      {
+        "id": "01f1a7032ae317b89308bcf283388e7f",
+        "question": [
+          "How would I distinguish a 4D contract mechanics issue from a 4B ancillary fees issue?"
+        ],
+        "sql": [
+          "SELECT `Code`, `Code Name`, `Qualifier`, `Disposition`, `Evidence`\n",
+          "FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary\n",
+          "WHERE `Code` IN ('4B', '4D')\n",
+          "  AND `Code` IS NOT NULL\n",
+          "ORDER BY `Code`, `Qualifier`"
+        ],
+        "usage_guidance": [
+          "Use this query to compare real examples of 4B (ancillary fees) and 4D (contract mechanics) findings side by side. Helps clarify the boundary between fee-during-service (4B) and fee-for-leaving (4D)."
+        ]
+      },
+      {
+        "id": "01f1a7032ae31d38894ac1ef48544b60",
+        "question": [
+          "What is the difference between resolved and mention_only in our findings data?"
+        ],
+        "sql": [
+          "SELECT `Disposition`, COUNT(*) AS count, COUNT(DISTINCT `Opp ID`) AS opps\n",
+          "FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary\n",
+          "WHERE `Disposition` IN ('resolved', 'mention_only')\n",
+          "GROUP BY `Disposition`"
+        ],
+        "usage_guidance": [
+          "Use this query to see how many findings and opportunities fall under resolved vs mention_only dispositions. Neither counts as a blocker; this query illustrates the difference in volume."
+        ]
+      },
+      {
+        "id": "01f1a70a53141523abf718bfe8462c0d",
+        "question": [
+          "For closed lost opportunities, what were the primary blockers and how did call sentiment correlate?"
+        ],
+        "sql": [
+          "SELECT b.`Opp ID`, b.`Code Name`, b.Qualifier, b.Disposition, b.Evidence, c.call_tone, c.call_topic, c.current_supplier\n",
+          "FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary b\n",
+          "JOIN dbw_brlui_stable.call_transcripts_poc.gold_call_enrichment_enh c\n",
+          "  ON b.`Opp ID` = c.opportunity_id\n",
+          "WHERE b.`Salesforce Stage` = 'Closed Lost'\n",
+          "  AND b.`Primary` = 'Yes'"
+        ],
+        "usage_guidance": [
+          "Use this query to review primary blockers for closed lost opportunities alongside call sentiment and supplier context. Useful for post-mortem analysis of lost deals."
+        ]
+      },
+      {
+        "id": "01f1a70a5314184198a31bcfac604047",
+        "question": [
+          "What is the distribution of Salesforce stages among opportunities with real blockers vs those without?"
+        ],
+        "sql": [
+          "SELECT `Salesforce Stage`,\n",
+          "  COUNT(DISTINCT CASE WHEN Disposition IN ('hard_blocker','friction') AND Code IS NOT NULL THEN `Opp ID` END) AS with_blockers,\n",
+          "  COUNT(DISTINCT CASE WHEN NOT (Disposition IN ('hard_blocker','friction') AND Code IS NOT NULL) THEN `Opp ID` END) AS without_blockers\n",
+          "FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary\n",
+          "GROUP BY `Salesforce Stage`"
+        ],
+        "usage_guidance": [
+          "Use this query to compare how many opportunities in each pipeline stage had real blockers (hard_blocker or friction) versus those that did not. Useful for stage-level conversion analysis."
+        ]
+      },
+      {
+        "id": "01f1a70a53141b8c9f8452984bbdbe1d",
+        "question": [
+          "Should latent findings be counted as blockers? Show the data to explain."
+        ],
+        "sql": [
+          "SELECT Disposition,\n",
+          "  CASE WHEN Disposition IN ('hard_blocker','friction') THEN 'YES - counts as blocker'\n",
+          "       WHEN Disposition = 'latent' THEN 'NO - hypothesis tier only'\n",
+          "       ELSE 'NO - context tier only' END AS is_blocker,\n",
+          "  COUNT(*) AS finding_count,\n",
+          "  COUNT(DISTINCT `Opp ID`) AS distinct_opps\n",
+          "FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary\n",
+          "WHERE Code IS NOT NULL\n",
+          "GROUP BY Disposition\n",
+          "ORDER BY finding_count DESC"
+        ],
+        "usage_guidance": [
+          "Use this query to illustrate why latent findings should never be counted as blockers. It shows all dispositions with a plain-language blocker label and finding counts."
+        ]
+      },
+      {
+        "id": "01f1a70cc53913bdba53690521c5c3f2",
+        "question": [
+          "Which opportunities have high-confidence hard blockers? Show the opportunity ID, stage, and evidence."
+        ],
+        "sql": [
+          "SELECT `Opp ID`, `Salesforce Stage`, `Code Name`, Evidence\n",
+          "FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary\n",
+          "WHERE Disposition = 'hard_blocker'\n",
+          "  AND Confidence = 'High'\n",
+          "  AND Code IS NOT NULL"
+        ],
+        "usage_guidance": [
+          "Use this query to list opportunities with high-confidence hard blockers, showing the supporting evidence. High confidence means an explicit customer statement with explicit effect on deal progression."
+        ]
+      },
+      {
+        "id": "01f1a70cc53917b69b9e6b83091e4bfe",
+        "question": [
+          "What is the final quoted rate amount for opportunities that had rate competitiveness issues (4A)?"
+        ],
+        "sql": [
+          "SELECT `Opp ID`, `Salesforce Stage`, Disposition, final_quoted_rate.amount AS quoted_amount, final_quoted_rate.rate_type, `Evidence`\n",
+          "FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary\n",
+          "WHERE Code = '4A'"
+        ],
+        "usage_guidance": [
+          "Use this query to review the final quoted rate details for all 4A (rate competitiveness) findings. Useful for pricing analysis and understanding how quoted rates relate to deal outcomes."
+        ]
+      },
+      {
+        "id": "20000000000000000000000000000002",
+        "question": [
+          "Show the count of blockers by Salesforce stage and code"
+        ],
+        "sql": [
+          "SELECT `Salesforce Stage` AS stage, `Code Name` AS code_name, COUNT(DISTINCT `Opp ID`) AS opportunities\n",
+          "FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary\n",
+          "WHERE Code IS NOT NULL\n",
+          "GROUP BY 1, 2\n",
+          "ORDER BY 1, 2"
+        ],
+        "usage_guidance": [
+          "Use this query to produce a cross-tab of pipeline stage by blocker code, counting distinct affected opportunities. Useful for stage-level blocker frequency reporting."
+        ]
+      },
+      {
+        "id": "20000000000000000000000000000003",
+        "question": [
+          "List opportunities where the customer sentiment was negative"
+        ],
+        "sql": [
+          "SELECT DISTINCT opportunity_id, call_topic, call_summary\n",
+          "FROM dbw_brlui_stable.call_transcripts_poc.gold_call_enrichment_enh\n",
+          "WHERE call_tone = 'negative'"
+        ],
+        "usage_guidance": [
+          "Use this query to list all opportunities where the customer expressed negative sentiment on any call. Returns opportunity ID, call topic, and call summary for review."
+        ]
+      }
+    ],
+    "join_specs": [
+      {
+        "id": "01f1a6f0363f1fc098d6944abc3060f1",
+        "left": {
+          "identifier": "dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary"
+        },
+        "right": {
+          "identifier": "dbw_brlui_stable.call_transcripts_poc.gold_call_enrichment_enh"
+        },
+        "sql": [
+          "gold_offer_blocker_summary.`Opp ID` = gold_call_enrichment_enh.opportunity_id",
+          "--rt=FROM_RELATIONSHIP_TYPE_MANY_TO_MANY--"
+        ],
+        "comment": [
+          "Blocker findings to call enrichment"
+        ]
+      },
+      {
+        "id": "01f1a6f0364013238f393d42e9674c76",
+        "left": {
+          "identifier": "dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary"
+        },
+        "right": {
+          "identifier": "dbw_brlui_stable.call_transcripts_poc.gold_followup_email_enh"
+        },
+        "sql": [
+          "gold_offer_blocker_summary.`Opp ID` = gold_followup_email_enh.opportunity_id",
+          "--rt=FROM_RELATIONSHIP_TYPE_MANY_TO_ONE--"
+        ],
+        "comment": [
+          "Blocker findings to follow-up emails"
+        ]
+      },
+      {
+        "id": "01f1a6f036401611b7337951ab87e9a9",
+        "left": {
+          "identifier": "dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary"
+        },
+        "right": {
+          "identifier": "dbw_brlui_stable.call_transcripts_poc.dim_salesforce_opportunity"
+        },
+        "sql": [
+          "gold_offer_blocker_summary.`Opp ID` = dim_salesforce_opportunity.opportunity_id",
+          "--rt=FROM_RELATIONSHIP_TYPE_MANY_TO_ONE--"
+        ],
+        "comment": [
+          "Blocker findings to Salesforce dimension"
+        ]
+      },
+      {
+        "id": "01f1a6f03640186cb13896c0840e9565",
+        "left": {
+          "identifier": "dbw_brlui_stable.call_transcripts_poc.gold_call_enrichment_enh"
+        },
+        "right": {
+          "identifier": "dbw_brlui_stable.call_transcripts_poc.dim_salesforce_opportunity"
+        },
+        "sql": [
+          "gold_call_enrichment_enh.opportunity_id = dim_salesforce_opportunity.opportunity_id",
+          "--rt=FROM_RELATIONSHIP_TYPE_MANY_TO_ONE--"
+        ],
+        "comment": [
+          "Call enrichment to Salesforce dimension"
+        ]
+      },
+      {
+        "id": "01f1a6f036401ac6863dc4916e947b75",
+        "left": {
+          "identifier": "dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary"
+        },
+        "right": {
+          "identifier": "dbw_brlui_stable.call_transcripts_poc.silver_opportunity_dialogue"
+        },
+        "sql": [
+          "gold_offer_blocker_summary.`Opp ID` = silver_opportunity_dialogue.opportunity_id",
+          "--rt=FROM_RELATIONSHIP_TYPE_MANY_TO_ONE--"
+        ],
+        "comment": [
+          "Blocker findings to transcript text"
+        ]
+      },
+      {
+        "id": "01f1a6f036401de5b7e45f17012de75a",
+        "left": {
+          "identifier": "dbw_brlui_stable.call_transcripts_poc.gold_call_enrichment_enh"
+        },
+        "right": {
+          "identifier": "dbw_brlui_stable.call_transcripts_poc.gold_followup_email_enh"
+        },
+        "sql": [
+          "gold_call_enrichment_enh.opportunity_id = gold_followup_email_enh.opportunity_id",
+          "--rt=FROM_RELATIONSHIP_TYPE_MANY_TO_ONE--"
+        ],
+        "comment": [
+          "Call enrichment to follow-up emails"
+        ]
+      }
+    ],
+    "sql_snippets": {
+      "filters": [
+        {
+          "id": "01f1a6f036471706bfb69204488f0183",
+          "sql": [
+            "gold_offer_blocker_summary.Disposition IN ('hard_blocker', 'friction')"
+          ],
+          "display_name": "Real blockers only (hard_blocker or friction)"
+        },
+        {
+          "id": "01f1a6f036471a40bd91b02b14b697bf",
+          "sql": [
+            "gold_offer_blocker_summary.Code IS NOT NULL"
+          ],
+          "display_name": "Exclude rows with no blocker code"
+        },
+        {
+          "id": "01f1a6f036471d64856b822d892e1ff2",
+          "sql": [
+            "gold_offer_blocker_summary.`Primary` = 'Yes'"
+          ],
+          "display_name": "Primary blockers only"
+        }
+      ],
+      "expressions": [
+        {
+          "id": "01f1a6f036481c018dfbcfc4c9f9eab1",
+          "sql": [
+            "gold_offer_blocker_summary.final_quoted_rate.amount"
+          ],
+          "display_name": "Final quoted total amount"
+        },
+        {
+          "id": "01f1a6f036481de089e5cf9cec35d8b6",
+          "sql": [
+            "gold_offer_blocker_summary.final_quoted_rate.rate_type"
+          ],
+          "display_name": "Final quoted rate type"
+        }
+      ],
+      "measures": [
+        {
+          "id": "01f1a6f0364817e8b551dc5973ab245f",
+          "sql": [
+            "COUNT(DISTINCT gold_offer_blocker_summary.`Opp ID`)"
+          ],
+          "display_name": "Count of distinct opportunities"
+        },
+        {
+          "id": "01f1a6f036481a0692b695944dbeb9e4",
+          "sql": [
+            "COUNT(DISTINCT CASE WHEN gold_offer_blocker_summary.Disposition IN ('hard_blocker', 'friction') AND gold_offer_blocker_summary.Code IS NOT NULL THEN gold_offer_blocker_summary.`Opp ID` END)"
+          ],
+          "display_name": "Count of distinct opportunities with real blockers"
+        }
+      ]
+    }
+  },
+  "benchmarks": {
+    "questions": [
+      {
+        "id": "01f1a6f6fc5811dfb09e31b48d8b2ced",
+        "question": [
+          "How many calls were recorded in each month?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT DATE_FORMAT(recordingStartTime, 'yyyy-MM') AS call_month, COUNT(*) AS call_count FROM dbw_brlui_stable.call_transcripts_poc.gold_call_enrichment_enh GROUP BY DATE_FORMAT(recordingStartTime, 'yyyy-MM') ORDER BY call_month"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "01f1a6f6fc3f19688950590a5cc50a2e",
+        "question": [
+          "For each region, what are the call topics and associated offer blocker dispositions? Show the counts."
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT d.region, ce.call_topic, ob.`Disposition`, COUNT(*) AS record_count FROM dbw_brlui_stable.call_transcripts_poc.gold_call_enrichment_enh ce JOIN dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary ob ON ce.opportunity_id = ob.`Opp ID` JOIN dbw_brlui_stable.call_transcripts_poc.dim_salesforce_opportunity d ON ce.opportunity_id = d.opportunity_id GROUP BY d.region, ce.call_topic, ob.`Disposition` ORDER BY d.region, record_count DESC"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "01f1a6f6fc2410b59197330269745d07",
+        "question": [
+          "Show the offer blocker summary findings for opportunities in the New York region, including the code name, disposition, confidence, and evidence."
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT obs.`Opp ID`, obs.`Code Name`, obs.Disposition, obs.Confidence, obs.Evidence FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary obs JOIN dbw_brlui_stable.call_transcripts_poc.dim_salesforce_opportunity d ON obs.`Opp ID` = d.opportunity_id WHERE d.region = 'New York'"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "01f1a6f6fc0a1c0bb801aebbea42c600",
+        "question": [
+          "Show each offer blocker with its severity label, code name, and opportunity ID, sorted by severity."
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT `Opp ID` AS opportunity_id, `Code Name` AS code_name, `Disposition` AS disposition, CASE WHEN `Disposition` = 'hard_blocker' THEN 'High Severity' WHEN `Disposition` = 'friction' THEN 'Medium Severity' ELSE 'Low Severity' END AS severity_label FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary WHERE `Code` IS NOT NULL ORDER BY CASE WHEN `Disposition` = 'hard_blocker' THEN 1 WHEN `Disposition` = 'friction' THEN 2 ELSE 3 END, `Code Name`"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "01f1a6f6fbf31da1addb9232eee7babf",
+        "question": [
+          "For closed lost opportunities, what were the primary blockers and how did call sentiment correlate?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT b.`Opp ID`, b.`Code Name`, b.Qualifier, b.Disposition, b.Evidence, c.call_tone, c.call_topic, c.current_supplier FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary b JOIN dbw_brlui_stable.call_transcripts_poc.gold_call_enrichment_enh c ON b.`Opp ID` = c.opportunity_id WHERE b.`Salesforce Stage` = 'Closed Lost' AND b.`Primary` = 'Yes'"
+            ]
+          }
+        ],
+        "evaluation_note": [
+          "The response should filter to Closed Lost stage and Primary = 'Yes' to show the single most impactful blocker per lost deal. It should join to call enrichment to show call_tone. Primary applies only to hard_blocker/friction rows and marks the single blocker that most drove the outcome when multiple blockers exist. The response should correlate the primary blocker code with call sentiment."
+        ]
+      },
+      {
+        "id": "01f1a6f6fbda1ac4ada28c4054ddccc8",
+        "question": [
+          "How would I distinguish a 4D contract mechanics issue from a 4B ancillary fees issue?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT Code, `Code Name`, Qualifier, Disposition, Evidence FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary WHERE Code IN ('4B', '4D') AND Code IS NOT NULL ORDER BY Code"
+            ]
+          }
+        ],
+        "evaluation_note": [
+          "The response must explain the key boundary rule: fees DURING service (rental, delivery, MUC, inspection — recurring costs while a customer) belong to 4B. Fees or dollars associated with LEAVING the contract (early termination charges, exit fees, cancellation conditions, notice periods, equipment removal) belong to 4D. The customer accepts the deal shape but resists the binding mechanics → 4D. The customer fights the fee stack itself → 4B."
+        ]
+      },
+      {
+        "id": "01f1a6f6fbba1afa8debef2091380199",
+        "question": [
+          "What is the difference between resolved and mention_only in our findings data?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT Disposition, COUNT(*) AS count, COUNT(DISTINCT `Opp ID`) AS opps FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary WHERE Disposition IN ('resolved', 'mention_only') GROUP BY Disposition"
+            ]
+          }
+        ],
+        "evaluation_note": [
+          "The response must explain that 'resolved' means the customer's factual premise was WRONG and accurate explanation corrected it (the concern dissolved), while 'mention_only' means the attribute surfaced but did not affect progression. Resolved is NOT simply 'the customer accepted the answer.' Neither counts as a blocker."
+        ]
+      },
+      {
+        "id": "01f1a6f6fb951b99952501d1a064de4a",
+        "question": [
+          "Should latent findings be counted as blockers? Show me the data to explain."
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT Disposition, CASE WHEN Disposition IN ('hard_blocker','friction') THEN 'YES - counts as blocker' WHEN Disposition = 'latent' THEN 'NO - hypothesis tier only' ELSE 'NO - context tier only' END AS is_blocker, COUNT(*) AS finding_count, COUNT(DISTINCT `Opp ID`) AS distinct_opps FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary WHERE Code IS NOT NULL GROUP BY Disposition ORDER BY finding_count DESC"
+            ]
+          }
+        ],
+        "evaluation_note": [
+          "The response must clearly state that latent findings are NEVER counted as blockers. Latent is a hypothesis tier only — it means an objectively adverse attribute exists but the customer did not explicitly cite it. Only hard_blocker and friction are real blockers. The response should NOT include latent in any blocker count or percentage."
+        ]
+      },
+      {
+        "id": "01f1a6f6fb80138e84c39e21d375ba11",
+        "question": [
+          "What is the final quoted rate amount for opportunities that had rate competitiveness issues (4A)?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT `Opp ID`, `Salesforce Stage`, Disposition, final_quoted_rate.amount AS quoted_amount, final_quoted_rate.rate_type, `Evidence` FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary WHERE Code = '4A'"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "01f1a6f6fb65135ea870e542a43a4dcd",
+        "question": [
+          "What is the distribution of Salesforce stages among opportunities with real blockers vs those without?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT `Salesforce Stage`, COUNT(DISTINCT CASE WHEN Disposition IN ('hard_blocker','friction') AND Code IS NOT NULL THEN `Opp ID` END) AS with_blockers, COUNT(DISTINCT CASE WHEN NOT (Disposition IN ('hard_blocker','friction') AND Code IS NOT NULL) THEN `Opp ID` END) AS without_blockers FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary GROUP BY `Salesforce Stage`"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "01f1a6f6fb4d1ea8a28af6ed91b413bd",
+        "question": [
+          "Which blocker code is most commonly the primary blocker?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT `Code Name`, COUNT(DISTINCT `Opp ID`) AS times_primary FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary WHERE `Primary` = 'Yes' GROUP BY `Code Name` ORDER BY times_primary DESC"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "01f1a6f6fb2f1a8f9f2f2fb8b8bcb003",
+        "question": [
+          "How many offer blockers are there by disposition for Closed Lost opportunities?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT `Disposition`, COUNT(*) AS blocker_count FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary WHERE `Salesforce Stage` = 'Closed Lost' AND `Code` IS NOT NULL GROUP BY `Disposition` ORDER BY blocker_count DESC"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "01f1a6f6fb181c5f9c4c4bfdccb73d8b",
+        "question": [
+          "How many times does each offer blocker code name appear by disposition type?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT `Code Name` AS code_name, `Disposition` AS disposition, COUNT(*) AS occurrence_count FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary WHERE `Code` IS NOT NULL GROUP BY `Code Name`, `Disposition` ORDER BY `Code Name`, occurrence_count DESC"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "01f1a6f6fb0016c487804edb5b3f35ce",
+        "question": [
+          "For each region, how many opportunities are in each sales stage?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT region, stage_name, COUNT(*) AS opportunity_count FROM dbw_brlui_stable.call_transcripts_poc.dim_salesforce_opportunity GROUP BY region, stage_name ORDER BY region, stage_name"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "01f1a6f6fae21dc3b878fec4016dc2fb",
+        "question": [
+          "Which opportunities have high-confidence hard blockers? Show the opportunity ID, stage, and evidence."
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT `Opp ID`, `Salesforce Stage`, `Code Name`, Evidence FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary WHERE Disposition = 'hard_blocker' AND Confidence = 'High' AND Code IS NOT NULL"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "01f1a6f6fac2134f84b203b556649fe1",
+        "question": [
+          "How do offer blocker code names vary by region?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT d.region, ob.`Code Name` AS code_name, COUNT(*) AS blocker_count FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary ob JOIN dbw_brlui_stable.call_transcripts_poc.dim_salesforce_opportunity d ON ob.`Opp ID` = d.opportunity_id WHERE ob.`Code` IS NOT NULL GROUP BY d.region, ob.`Code Name` ORDER BY d.region, blocker_count DESC"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "01f1a6f6faaa1dff9c2216ff6734aa19",
+        "question": [
+          "Which call topics are associated with the most negative sentiment calls?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT call_topic, COUNT(*) AS negative_call_count FROM dbw_brlui_stable.call_transcripts_poc.gold_call_enrichment_enh WHERE call_tone = 'negative' GROUP BY call_topic ORDER BY negative_call_count DESC"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "01f1a6f6fa91184b89b53d56fbb52f9c",
+        "question": [
+          "What is the breakdown of call tone (sentiment) across all calls?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT call_tone, COUNT(*) AS call_count FROM dbw_brlui_stable.call_transcripts_poc.gold_call_enrichment_enh GROUP BY call_tone ORDER BY call_count DESC"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "01f1a6f6fa7b1aaf93beacf5d29720c9",
+        "question": [
+          "Which opportunities have both a competitor rate mentioned on the call and a hard blocker recorded? Show the opportunity ID, competitor rate, and blocker code name."
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT c.opportunity_id, c.competitor_or_quoted_rate, ob.code_name FROM dbw_brlui_stable.call_transcripts_poc.gold_call_enrichment_enh c JOIN dbw_brlui_stable.call_transcripts_poc.gold_offer_blockers ob ON c.opportunity_id = ob.opportunity_id WHERE c.competitor_or_quoted_rate IS NOT NULL AND ob.disposition = 'hard_blocker'"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "01f1a6f6fa6219d884e6e1f73d0a3b36",
+        "question": [
+          "What is the average disposition confidence score for each offer blocker qualifier type?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT `Qualifier`, AVG(CASE `Confidence` WHEN 'High' THEN 3 WHEN 'Medium' THEN 2 WHEN 'Low' THEN 1 END) AS avg_confidence_score FROM dbw_brlui_stable.call_transcripts_poc.gold_offer_blocker_summary WHERE `Qualifier` IS NOT NULL AND `Code` IS NOT NULL GROUP BY `Qualifier` ORDER BY avg_confidence_score DESC"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

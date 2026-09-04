@@ -1,0 +1,21 @@
+# =============================================================================
+# INGEST job — wraps the SDP pipeline and demonstrates the "new batch lands ->
+# pipeline runs automatically" pattern via a file-arrival trigger on the landing
+# Volume. Drop a new transcript file into the landing folder and this job fires;
+# Auto Loader then processes only the new file(s).
+#
+# For the initial demo you can also run the pipeline directly:
+#   databricks bundle run offer_blocker_pipeline -t dev -p dbw-brlui-stable
+# =============================================================================
+resources:
+  jobs:
+    offer_blocker_ingest_job:
+      name: offer_blocker_ingest
+      tasks:
+        - task_key: run_pipeline
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.offer_blocker_pipeline.id}
+      # Fire whenever a new file appears in the landing Volume.
+      trigger:
+        file_arrival:
+          url: /Volumes/${var.catalog}/${var.schema}/landing/transcripts/

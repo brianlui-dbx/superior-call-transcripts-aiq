@@ -1,0 +1,12 @@
+# =============================================================================
+# AI/BI dashboard as a DAB resource. `bundle deploy` publishes it from the
+# checked-in .lvdash.json. The source definition was imported from dashboard
+# 01f1a70334b0114384592a2536bbe4f2.
+# =============================================================================
+resources:
+  dashboards:
+    offer_blocker_dashboard:
+      display_name: "Sales Call Coaching — Offer Blocker Intelligence"
+      file_path: ../src/dashboards/offer_blocker.lvdash.json
+      warehouse_id: ${var.warehouse_id}
+      parent_path: /Workspace/Users/${workspace.current_user.userName}

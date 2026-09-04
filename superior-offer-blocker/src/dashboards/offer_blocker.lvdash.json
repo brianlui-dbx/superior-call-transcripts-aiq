@@ -1,0 +1,2471 @@
+{
+  "datasets": [
+    {
+      "catalog": "dbw_brlui_stable",
+      "displayName": "Call Enrichment",
+      "name": "ds_enrichment",
+      "queryLines": [
+        "SELECT\n",
+        "  call_id,\n",
+        "  opportunity_id,\n",
+        "  stage_name AS stage,\n",
+        "  call_tone,\n",
+        "  call_topic,\n",
+        "  service_city,\n",
+        "  tank_size,\n",
+        "  current_supplier,\n",
+        "  competitor_or_quoted_rate,\n",
+        "  promotion_mentioned,\n",
+        "  objection_proximity,\n",
+        "  call_summary,\n",
+        "  CASE\n",
+        "    WHEN call_tone = 'negative' THEN 3\n",
+        "    WHEN call_tone = 'mixed' THEN 2\n",
+        "    WHEN call_tone = 'neutral' THEN 1\n",
+        "    WHEN call_tone = 'positive' THEN 0\n",
+        "    ELSE NULL\n",
+        "  END AS tone_risk_score\n",
+        "FROM\n",
+        "  gold_call_enrichment_enh"
+      ],
+      "schema": "call_transcripts_poc"
+    },
+    {
+      "catalog": "dbw_brlui_stable",
+      "displayName": "Offer Blocker Findings",
+      "name": "ds_findings",
+      "queryLines": [
+        "SELECT\n",
+        "  `Opp ID` AS opp_id,\n",
+        "  `Salesforce Stage` AS stage,\n",
+        "  Code AS code,\n",
+        "  CASE\n",
+        "    WHEN Code = '—' THEN 'No blocker'\n",
+        "    ELSE `Code Name`\n",
+        "  END AS code_name,\n",
+        "  `Primary` AS is_primary,\n",
+        "  Qualifier AS qualifier,\n",
+        "  Disposition AS disposition,\n",
+        "  Confidence AS confidence,\n",
+        "  Evidence AS evidence,\n",
+        "  final_quoted_rate.rate_type AS rate_type,\n",
+        "  final_quoted_rate.amount AS quoted_amount,\n",
+        "  CASE\n",
+        "    WHEN Code <> '—' THEN 1\n",
+        "    ELSE 0\n",
+        "  END AS is_blocker,\n",
+        "  CASE\n",
+        "    WHEN Disposition = 'hard_blocker' THEN 1\n",
+        "    ELSE 0\n",
+        "  END AS is_hard,\n",
+        "  CASE\n",
+        "    WHEN Disposition = 'hard_blocker' THEN 'Critical'\n",
+        "    WHEN Disposition = 'friction' THEN 'Warning'\n",
+        "    WHEN Disposition = 'resolved' THEN 'Resolved'\n",
+        "    WHEN Disposition = 'mention_only' THEN 'Low'\n",
+        "    ELSE 'Other'\n",
+        "  END AS severity\n",
+        "FROM\n",
+        "  gold_offer_blocker_summary\n",
+        "ORDER BY\n",
+        "  is_blocker DESC,\n",
+        "  code"
+      ],
+      "schema": "call_transcripts_poc"
+    },
+    {
+      "catalog": "dbw_brlui_stable",
+      "displayName": "Competitive Intelligence (AI-Extracted)",
+      "name": "ds_competitive_intel",
+      "queryLines": [
+        "SELECT\n",
+        "  call_id,\n",
+        "  opportunity_id,\n",
+        "  stage_name AS stage,\n",
+        "  current_supplier,\n",
+        "  competitor_or_quoted_rate,\n",
+        "  promotion_mentioned\n",
+        "FROM\n",
+        "  gold_call_enrichment_enh\n",
+        "WHERE\n",
+        "  current_supplier IS NOT NULL\n",
+        "  OR competitor_or_quoted_rate IS NOT NULL\n",
+        "  OR promotion_mentioned IS NOT NULL\n",
+        "ORDER BY\n",
+        "  opportunity_id,\n",
+        "  call_id"
+      ],
+      "schema": "call_transcripts_poc"
+    }
+  ],
+  "pages": [
+    {
+      "displayName": "Executive Overview",
+      "layout": [
+        {
+          "position": {
+            "height": 1,
+            "width": 12,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Offer Blocker Intelligence — Sales Coaching Dashboard"
+              ]
+            },
+            "name": "title"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 12,
+            "x": 0,
+            "y": 1
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "AI-coded findings from call transcripts. Identify what blocks offers, coach reps on overcoming objections, and improve close rates."
+              ]
+            },
+            "name": "subtitle"
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 3,
+            "x": 0,
+            "y": 3
+          },
+          "widget": {
+            "name": "kpi_opps",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_findings",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "COUNT(DISTINCT `opp_id`)",
+                      "name": "countdistinct(opp_id)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "value": {
+                  "displayName": "Opportunities",
+                  "fieldName": "countdistinct(opp_id)"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Opportunities Analyzed"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 3,
+            "x": 3,
+            "y": 3
+          },
+          "widget": {
+            "name": "kpi_findings",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_findings",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "COUNT(`opp_id`)",
+                      "name": "count(opp_id)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "value": {
+                  "displayName": "Total Findings",
+                  "fieldName": "count(opp_id)"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Total Findings"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 3,
+            "x": 6,
+            "y": 3
+          },
+          "widget": {
+            "name": "kpi_blockers",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_findings",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "SUM(`is_blocker`)",
+                      "name": "sum(is_blocker)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "value": {
+                  "displayName": "Coded Blockers",
+                  "fieldName": "sum(is_blocker)"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Coded Blockers"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 3,
+            "x": 9,
+            "y": 3
+          },
+          "widget": {
+            "name": "kpi_hard",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_findings",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "SUM(`is_hard`)",
+                      "name": "sum(is_hard)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "value": {
+                  "displayName": "Deal-Killers",
+                  "fieldName": "sum(is_hard)"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Hard Blockers (Deal-Killers)"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 12,
+            "x": 0,
+            "y": 6
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Blocker Breakdown"
+              ]
+            },
+            "name": "hdr_blockers"
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 6,
+            "x": 6,
+            "y": 7
+          },
+          "widget": {
+            "name": "pie_disposition",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_findings",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "COUNT(`opp_id`)",
+                      "name": "count(opp_id)"
+                    },
+                    {
+                      "expression": "`disposition`",
+                      "name": "disposition"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "angle": {
+                  "displayName": "Findings",
+                  "fieldName": "count(opp_id)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "displayName": "Disposition",
+                  "fieldName": "disposition",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Disposition Mix"
+              },
+              "version": 3,
+              "widgetType": "pie"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 12,
+            "x": 0,
+            "y": 13
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Stage × Blocker Matrix"
+              ]
+            },
+            "name": "hdr_matrix"
+          }
+        },
+        {
+          "position": {
+            "height": 7,
+            "width": 12,
+            "x": 0,
+            "y": 14
+          },
+          "widget": {
+            "name": "pivot_stage_code",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "cubeGroupingSets": {
+                    "sets": [
+                      {
+                        "fieldNames": [
+                          "code_name"
+                        ]
+                      },
+                      {
+                        "fieldNames": [
+                          "stage"
+                        ]
+                      }
+                    ]
+                  },
+                  "datasetName": "ds_findings",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`code_name`",
+                      "name": "code_name"
+                    },
+                    {
+                      "expression": "`stage`",
+                      "name": "stage"
+                    },
+                    {
+                      "expression": "COUNT(`opp_id`)",
+                      "name": "count(opp_id)"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "ASC",
+                      "expression": "`code_name`"
+                    },
+                    {
+                      "direction": "ASC",
+                      "expression": "`stage`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "cell": {
+                  "fieldName": "count(opp_id)",
+                  "type": "single-cell"
+                },
+                "columns": [
+                  {
+                    "fieldName": "stage",
+                    "scale": {
+                      "type": "categorical"
+                    }
+                  }
+                ],
+                "rows": [
+                  {
+                    "fieldName": "code_name",
+                    "scale": {
+                      "type": "categorical"
+                    }
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Blocker Code × Stage Pivot"
+              },
+              "version": 3,
+              "widgetType": "pivot"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 6,
+            "x": 0,
+            "y": 7
+          },
+          "widget": {
+            "name": "bar_by_code",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_findings",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`code_name`",
+                      "name": "code_name"
+                    },
+                    {
+                      "expression": "COUNT(`opp_id`)",
+                      "name": "count(opp_id)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "color": {
+                  "displayName": "code_name",
+                  "fieldName": "code_name",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "x": {
+                  "displayName": "Blocker Code",
+                  "fieldName": "code_name",
+                  "scale": {
+                    "sort": {
+                      "by": "y"
+                    },
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Findings",
+                  "fieldName": "count(opp_id)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Findings by Blocker Code"
+                }
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 12,
+            "x": 0,
+            "y": 21
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Findings Detail"
+              ]
+            },
+            "name": "hdr_detail"
+          }
+        },
+        {
+          "position": {
+            "height": 8,
+            "width": 12,
+            "x": 0,
+            "y": 22
+          },
+          "widget": {
+            "name": "tbl_findings",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_findings",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`opp_id`",
+                      "name": "opp_id"
+                    },
+                    {
+                      "expression": "`stage`",
+                      "name": "stage"
+                    },
+                    {
+                      "expression": "`code`",
+                      "name": "code"
+                    },
+                    {
+                      "expression": "`code_name`",
+                      "name": "code_name"
+                    },
+                    {
+                      "expression": "`is_primary`",
+                      "name": "is_primary"
+                    },
+                    {
+                      "expression": "`qualifier`",
+                      "name": "qualifier"
+                    },
+                    {
+                      "expression": "`disposition`",
+                      "name": "disposition"
+                    },
+                    {
+                      "expression": "`confidence`",
+                      "name": "confidence"
+                    },
+                    {
+                      "expression": "`severity`",
+                      "name": "severity"
+                    },
+                    {
+                      "expression": "`evidence`",
+                      "name": "evidence"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "displayName": "Opp ID",
+                    "fieldName": "opp_id"
+                  },
+                  {
+                    "displayName": "Stage",
+                    "fieldName": "stage"
+                  },
+                  {
+                    "displayName": "Code",
+                    "fieldName": "code"
+                  },
+                  {
+                    "displayName": "Blocker Name",
+                    "fieldName": "code_name"
+                  },
+                  {
+                    "displayName": "Primary?",
+                    "fieldName": "is_primary"
+                  },
+                  {
+                    "displayName": "Qualifier",
+                    "fieldName": "qualifier"
+                  },
+                  {
+                    "displayName": "Disposition",
+                    "fieldName": "disposition"
+                  },
+                  {
+                    "displayName": "Confidence",
+                    "fieldName": "confidence"
+                  },
+                  {
+                    "displayName": "Severity",
+                    "fieldName": "severity"
+                  },
+                  {
+                    "displayName": "Evidence",
+                    "fieldName": "evidence",
+                    "useForSearch": true
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "All Findings"
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          }
+        }
+      ],
+      "layoutVersion": "GRID_V1",
+      "name": "85ef7ed7",
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "displayName": "Call Intelligence & Coaching",
+      "layout": [
+        {
+          "position": {
+            "height": 1,
+            "width": 12,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Call Intelligence & Coaching Insights"
+              ]
+            },
+            "name": "title"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 12,
+            "x": 0,
+            "y": 1
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "AI-enriched call data: sentiment, topics, suppliers, and promotions. Use to identify coaching opportunities and competitive trends."
+              ]
+            },
+            "name": "subtitle"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 4,
+            "x": 0,
+            "y": 2
+          },
+          "widget": {
+            "name": "filter_tone",
+            "queries": [
+              {
+                "name": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bc801dc0b2545dbfe5a9d228_call_tone",
+                "query": {
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`call_tone`",
+                      "name": "call_tone"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "call_tone_associativity"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "call_tone",
+                    "queryName": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bc801dc0b2545dbfe5a9d228_call_tone"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Call Tone"
+              },
+              "version": 2,
+              "widgetType": "filter-multi-select"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 4,
+            "x": 4,
+            "y": 2
+          },
+          "widget": {
+            "name": "filter_topic",
+            "queries": [
+              {
+                "name": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bc801dc0b2545dbfe5a9d228_call_topic",
+                "query": {
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`call_topic`",
+                      "name": "call_topic"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "call_topic_associativity"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "call_topic",
+                    "queryName": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bc801dc0b2545dbfe5a9d228_call_topic"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Call Topic"
+              },
+              "version": 2,
+              "widgetType": "filter-multi-select"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 4,
+            "x": 8,
+            "y": 2
+          },
+          "widget": {
+            "name": "filter_supplier",
+            "queries": [
+              {
+                "name": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bc801dc0b2545dbfe5a9d228_current_supplier",
+                "query": {
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`current_supplier`",
+                      "name": "current_supplier"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "current_supplier_associativity"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "current_supplier",
+                    "queryName": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bc801dc0b2545dbfe5a9d228_current_supplier"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Current Supplier"
+              },
+              "version": 2,
+              "widgetType": "filter-multi-select"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 4,
+            "x": 0,
+            "y": 3
+          },
+          "widget": {
+            "name": "kpi_calls",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "COUNT(`call_id`)",
+                      "name": "count(call_id)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "count(call_id)",
+                  "rowNumber": 0
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Total Calls"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 4,
+            "x": 4,
+            "y": 3
+          },
+          "widget": {
+            "name": "kpi_objection",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "AVG(`objection_proximity`)",
+                      "name": "avg(objection_proximity)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "value": {
+                  "displayName": "Avg Proximity",
+                  "fieldName": "avg(objection_proximity)",
+                  "format": {
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "places": 2,
+                      "type": "exact"
+                    },
+                    "type": "number-plain"
+                  },
+                  "rowNumber": 0
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Avg Objection Proximity"
+                }
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 4,
+            "x": 8,
+            "y": 3
+          },
+          "widget": {
+            "name": "kpi_suppliers",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "COUNT(DISTINCT `current_supplier`)",
+                      "name": "countdistinct(current_supplier)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "value": {
+                  "displayName": "Suppliers",
+                  "fieldName": "countdistinct(current_supplier)",
+                  "rowNumber": 0
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Distinct Suppliers"
+                }
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 6,
+            "x": 6,
+            "y": 6
+          },
+          "widget": {
+            "name": "bar_topic",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`call_topic`",
+                      "name": "call_topic"
+                    },
+                    {
+                      "expression": "COUNT(`call_id`)",
+                      "name": "count(call_id)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "color": {
+                  "displayName": "call_topic",
+                  "fieldName": "call_topic",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "x": {
+                  "displayName": "Call Topic",
+                  "fieldName": "call_topic",
+                  "scale": {
+                    "sort": {
+                      "by": "y"
+                    },
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Calls",
+                  "fieldName": "count(call_id)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Call Topics"
+                }
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 6,
+            "x": 0,
+            "y": 12
+          },
+          "widget": {
+            "name": "bar_supplier",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`current_supplier`",
+                      "name": "current_supplier"
+                    },
+                    {
+                      "expression": "COUNT(`call_id`)",
+                      "name": "count(call_id)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "color": {
+                  "displayName": "current_supplier",
+                  "fieldName": "current_supplier",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "x": {
+                  "displayName": "Supplier",
+                  "fieldName": "current_supplier",
+                  "scale": {
+                    "sort": {
+                      "by": "y"
+                    },
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Calls",
+                  "fieldName": "count(call_id)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Calls by Current Supplier"
+                }
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 6,
+            "x": 0,
+            "y": 6
+          },
+          "widget": {
+            "name": "pie_tone",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "COUNT(`call_id`)",
+                      "name": "count(call_id)"
+                    },
+                    {
+                      "expression": "`call_tone`",
+                      "name": "call_tone"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "angle": {
+                  "displayName": "Calls",
+                  "fieldName": "count(call_id)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "displayName": "Call Tone",
+                  "fieldName": "call_tone",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Customer Call Tone"
+              },
+              "version": 3,
+              "widgetType": "pie"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 6,
+            "x": 6,
+            "y": 12
+          },
+          "widget": {
+            "name": "pie_promo",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "COUNT(`call_id`)",
+                      "name": "count(call_id)"
+                    },
+                    {
+                      "expression": "`promotion_mentioned`",
+                      "name": "promotion_mentioned"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "angle": {
+                  "displayName": "Calls",
+                  "fieldName": "count(call_id)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "displayName": "Promotion Mentioned",
+                  "fieldName": "promotion_mentioned",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Promotions Mentioned"
+              },
+              "version": 3,
+              "widgetType": "pie"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 12,
+            "x": 0,
+            "y": 18
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Tone × Stage Analysis"
+              ]
+            },
+            "name": "hdr_tone_stage"
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 12,
+            "x": 0,
+            "y": 19
+          },
+          "widget": {
+            "name": "bar_tone_stage",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`call_tone`",
+                      "name": "call_tone"
+                    },
+                    {
+                      "expression": "`stage`",
+                      "name": "stage"
+                    },
+                    {
+                      "expression": "COUNT(`call_id`)",
+                      "name": "count(call_id)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "color": {
+                  "displayName": "Call Tone",
+                  "fieldName": "call_tone",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "x": {
+                  "displayName": "Pipeline Stage",
+                  "fieldName": "stage",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Calls",
+                  "fieldName": "count(call_id)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Call Tone by Pipeline Stage"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 12,
+            "x": 0,
+            "y": 25
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Call Summaries & Detail"
+              ]
+            },
+            "name": "hdr_detail"
+          }
+        },
+        {
+          "position": {
+            "height": 8,
+            "width": 12,
+            "x": 0,
+            "y": 26
+          },
+          "widget": {
+            "name": "tbl_calls",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`call_id`",
+                      "name": "call_id"
+                    },
+                    {
+                      "expression": "`opportunity_id`",
+                      "name": "opportunity_id"
+                    },
+                    {
+                      "expression": "`stage`",
+                      "name": "stage"
+                    },
+                    {
+                      "expression": "`call_tone`",
+                      "name": "call_tone"
+                    },
+                    {
+                      "expression": "`call_topic`",
+                      "name": "call_topic"
+                    },
+                    {
+                      "expression": "`current_supplier`",
+                      "name": "current_supplier"
+                    },
+                    {
+                      "expression": "`promotion_mentioned`",
+                      "name": "promotion_mentioned"
+                    },
+                    {
+                      "expression": "`objection_proximity`",
+                      "name": "objection_proximity"
+                    },
+                    {
+                      "expression": "`call_summary`",
+                      "name": "call_summary"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "displayName": "Call ID",
+                    "fieldName": "call_id"
+                  },
+                  {
+                    "displayName": "Opp ID",
+                    "fieldName": "opportunity_id"
+                  },
+                  {
+                    "displayName": "Stage",
+                    "fieldName": "stage"
+                  },
+                  {
+                    "displayName": "Tone",
+                    "fieldName": "call_tone"
+                  },
+                  {
+                    "displayName": "Topic",
+                    "fieldName": "call_topic"
+                  },
+                  {
+                    "displayName": "Supplier",
+                    "fieldName": "current_supplier"
+                  },
+                  {
+                    "displayName": "Promo?",
+                    "fieldName": "promotion_mentioned"
+                  },
+                  {
+                    "displayName": "Objection Score",
+                    "fieldName": "objection_proximity"
+                  },
+                  {
+                    "displayName": "Call Summary",
+                    "fieldName": "call_summary",
+                    "useForSearch": true
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Call Detail Table"
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          }
+        }
+      ],
+      "layoutVersion": "GRID_V1",
+      "name": "call_intel",
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "displayName": "Global Filters",
+      "layout": [
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "name": "filter_opp_id",
+            "queries": [
+              {
+                "name": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bcb0140b82e82e3dcf9b0e11_opp_id",
+                "query": {
+                  "datasetName": "ds_findings",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`opp_id`",
+                      "name": "opp_id"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "opp_id_associativity"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bc801dc0b2545dbfe5a9d228_opportunity_id",
+                "query": {
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`opportunity_id`",
+                      "name": "opportunity_id"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "opportunity_id_associativity"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "opp_id",
+                    "queryName": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bcb0140b82e82e3dcf9b0e11_opp_id"
+                  },
+                  {
+                    "fieldName": "opportunity_id",
+                    "queryName": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bc801dc0b2545dbfe5a9d228_opportunity_id"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Opportunity ID"
+              },
+              "version": 2,
+              "widgetType": "filter-multi-select"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 6,
+            "y": 0
+          },
+          "widget": {
+            "name": "filter_call_id",
+            "queries": [
+              {
+                "name": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bc801dc0b2545dbfe5a9d228_call_id",
+                "query": {
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`call_id`",
+                      "name": "call_id"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "call_id_associativity"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "call_id",
+                    "queryName": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bc801dc0b2545dbfe5a9d228_call_id"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Call ID"
+              },
+              "version": 2,
+              "widgetType": "filter-multi-select"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 3,
+            "x": 0,
+            "y": 1
+          },
+          "widget": {
+            "name": "filter_stage",
+            "queries": [
+              {
+                "name": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bc801dc0b2545dbfe5a9d228_stage",
+                "query": {
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`stage`",
+                      "name": "stage"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "stage_associativity"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bcb0140b82e82e3dcf9b0e11_stage",
+                "query": {
+                  "datasetName": "ds_findings",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`stage`",
+                      "name": "stage"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "stage_associativity"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a713018a1af19e6fd539667a88e6_stage",
+                "query": {
+                  "datasetName": "ds_competitive_intel",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`stage`",
+                      "name": "stage"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "stage_associativity"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "stage",
+                    "queryName": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bc801dc0b2545dbfe5a9d228_stage"
+                  },
+                  {
+                    "fieldName": "stage",
+                    "queryName": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bcb0140b82e82e3dcf9b0e11_stage"
+                  },
+                  {
+                    "fieldName": "stage",
+                    "queryName": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a713018a1af19e6fd539667a88e6_stage"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Stage"
+                }
+              },
+              "version": 2,
+              "widgetType": "filter-multi-select"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 3,
+            "x": 3,
+            "y": 1
+          },
+          "widget": {
+            "name": "filter_tone",
+            "queries": [
+              {
+                "name": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bc801dc0b2545dbfe5a9d228_call_tone",
+                "query": {
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`call_tone`",
+                      "name": "call_tone"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "call_tone_associativity"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "call_tone",
+                    "queryName": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bc801dc0b2545dbfe5a9d228_call_tone"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Call Tone"
+                }
+              },
+              "version": 2,
+              "widgetType": "filter-multi-select"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 3,
+            "x": 6,
+            "y": 1
+          },
+          "widget": {
+            "name": "filter_confidence",
+            "queries": [
+              {
+                "name": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bcb0140b82e82e3dcf9b0e11_confidence",
+                "query": {
+                  "datasetName": "ds_findings",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`confidence`",
+                      "name": "confidence"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "confidence_associativity"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "confidence",
+                    "queryName": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bcb0140b82e82e3dcf9b0e11_confidence"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "AI Confidence"
+              },
+              "version": 2,
+              "widgetType": "filter-multi-select"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 3,
+            "x": 9,
+            "y": 1
+          },
+          "widget": {
+            "name": "filter_disposition",
+            "queries": [
+              {
+                "name": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bcb0140b82e82e3dcf9b0e11_disposition",
+                "query": {
+                  "datasetName": "ds_findings",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`disposition`",
+                      "name": "disposition"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "disposition_associativity"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "disposition",
+                    "queryName": "dashboards/01f1a70334b0114384592a2536bbe4f2/datasets/01f1a703bcb0140b82e82e3dcf9b0e11_disposition"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Disposition"
+              },
+              "version": 2,
+              "widgetType": "filter-multi-select"
+            }
+          }
+        }
+      ],
+      "layoutVersion": "GRID_V1",
+      "name": "global_filters",
+      "pageType": "PAGE_TYPE_GLOBAL_FILTERS"
+    },
+    {
+      "displayName": "AI Insights",
+      "layout": [
+        {
+          "position": {
+            "height": 2,
+            "width": 12,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "## AI Insights\n",
+                "\n",
+                "Widgets on this page highlight columns produced by AI functions (sentiment, topic extraction, entity extraction, confidence scoring) from the upstream enrichment pipeline."
+              ]
+            },
+            "name": "hdr_title"
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 4,
+            "x": 0,
+            "y": 2
+          },
+          "widget": {
+            "name": "pie_tone",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "COUNT(`call_id`)",
+                      "name": "count(call_id)"
+                    },
+                    {
+                      "expression": "`call_tone`",
+                      "name": "call_tone"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "angle": {
+                  "displayName": "call_id",
+                  "fieldName": "count(call_id)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "displayName": "call_tone",
+                  "fieldName": "call_tone",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Call Tone Distribution"
+              },
+              "version": 3,
+              "widgetType": "pie"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 4,
+            "x": 4,
+            "y": 2
+          },
+          "widget": {
+            "name": "bar_topic",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`call_topic`",
+                      "name": "call_topic"
+                    },
+                    {
+                      "expression": "COUNT(`call_id`)",
+                      "name": "count(call_id)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "color": {
+                  "displayName": "call_topic",
+                  "fieldName": "call_topic",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "x": {
+                  "displayName": "call_topic",
+                  "fieldName": "call_topic",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "call_id",
+                  "fieldName": "count(call_id)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Call Topic Breakdown"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 4,
+            "x": 8,
+            "y": 2
+          },
+          "widget": {
+            "name": "bar_objection",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`call_tone`",
+                      "name": "call_tone"
+                    },
+                    {
+                      "expression": "AVG(`objection_proximity`)",
+                      "name": "avg(objection_proximity)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "color": {
+                  "displayName": "call_tone",
+                  "fieldName": "call_tone",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "x": {
+                  "displayName": "call_tone",
+                  "fieldName": "call_tone",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "objection_proximity",
+                  "fieldName": "avg(objection_proximity)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Avg Objection Proximity by Tone"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 6,
+            "x": 0,
+            "y": 8
+          },
+          "widget": {
+            "name": "bar_confidence",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_findings",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`confidence`",
+                      "name": "confidence"
+                    },
+                    {
+                      "expression": "COUNT(`opp_id`)",
+                      "name": "count(opp_id)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "color": {
+                  "displayName": "confidence",
+                  "fieldName": "confidence",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "x": {
+                  "displayName": "confidence",
+                  "fieldName": "confidence",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "opp_id",
+                  "fieldName": "count(opp_id)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "AI Confidence Distribution"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 6,
+            "x": 6,
+            "y": 8
+          },
+          "widget": {
+            "name": "tbl_competitive",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_competitive_intel",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`call_id`",
+                      "name": "call_id"
+                    },
+                    {
+                      "expression": "`opportunity_id`",
+                      "name": "opportunity_id"
+                    },
+                    {
+                      "expression": "`stage`",
+                      "name": "stage"
+                    },
+                    {
+                      "expression": "`current_supplier`",
+                      "name": "current_supplier"
+                    },
+                    {
+                      "expression": "`competitor_or_quoted_rate`",
+                      "name": "competitor_or_quoted_rate"
+                    },
+                    {
+                      "expression": "`promotion_mentioned`",
+                      "name": "promotion_mentioned"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "call_id"
+                  },
+                  {
+                    "fieldName": "opportunity_id"
+                  },
+                  {
+                    "fieldName": "stage"
+                  },
+                  {
+                    "fieldName": "current_supplier"
+                  },
+                  {
+                    "fieldName": "competitor_or_quoted_rate"
+                  },
+                  {
+                    "fieldName": "promotion_mentioned"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Competitive Intelligence (AI-Extracted)"
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 8,
+            "width": 12,
+            "x": 0,
+            "y": 14
+          },
+          "widget": {
+            "name": "tbl_summaries",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`call_id`",
+                      "name": "call_id"
+                    },
+                    {
+                      "expression": "`stage`",
+                      "name": "stage"
+                    },
+                    {
+                      "expression": "`call_tone`",
+                      "name": "call_tone"
+                    },
+                    {
+                      "expression": "`call_topic`",
+                      "name": "call_topic"
+                    },
+                    {
+                      "expression": "`call_summary`",
+                      "name": "call_summary"
+                    },
+                    {
+                      "expression": "`objection_proximity`",
+                      "name": "objection_proximity"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "call_id"
+                  },
+                  {
+                    "fieldName": "stage"
+                  },
+                  {
+                    "fieldName": "call_tone"
+                  },
+                  {
+                    "fieldName": "call_topic"
+                  },
+                  {
+                    "fieldName": "call_summary"
+                  },
+                  {
+                    "fieldName": "objection_proximity"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Call Summaries with AI Tone"
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 12,
+            "x": 0,
+            "y": 22
+          },
+          "widget": {
+            "name": "pivot_tone_stage",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "cubeGroupingSets": {
+                    "sets": [
+                      {
+                        "fieldNames": [
+                          "call_tone"
+                        ]
+                      },
+                      {
+                        "fieldNames": [
+                          "stage"
+                        ]
+                      }
+                    ]
+                  },
+                  "datasetName": "ds_enrichment",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`call_tone`",
+                      "name": "call_tone"
+                    },
+                    {
+                      "expression": "`stage`",
+                      "name": "stage"
+                    },
+                    {
+                      "expression": "COUNT(`call_id`)",
+                      "name": "count(call_id)"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "ASC",
+                      "expression": "`call_tone`"
+                    },
+                    {
+                      "direction": "ASC",
+                      "expression": "`stage`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "cell": {
+                  "cellType": "text",
+                  "fieldName": "count(call_id)",
+                  "type": "single-cell"
+                },
+                "columns": [
+                  {
+                    "fieldName": "stage"
+                  }
+                ],
+                "rows": [
+                  {
+                    "fieldName": "call_tone"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Tone × Stage Heatmap"
+              },
+              "version": 3,
+              "widgetType": "pivot"
+            }
+          }
+        }
+      ],
+      "layoutVersion": "GRID_V1",
+      "name": "ai_insights",
+      "pageType": "PAGE_TYPE_CANVAS"
+    }
+  ],
+  "uiSettings": {
+    "applyModeEnabled": false,
+    "genieSpace": {
+      "enablementMode": "ENABLED",
+      "isEnabled": true,
+      "overrideId": "01f19cba5b581c9a81e28d0502069ec6"
+    },
+    "theme": {
+      "canvasBackgroundColor": {
+        "dark": "#1A1F25",
+        "light": "#F5F7FA"
+      },
+      "fontSettings": {
+        "base": {
+          "fontFamily": "DM Sans"
+        },
+        "widgetTitle": {
+          "fontWeight": 600
+        }
+      },
+      "selectionColor": {
+        "dark": "#8ACAFF",
+        "light": "#2272B4"
+      },
+      "visualizationColorMappings": [
+        {
+          "color": "#FF5F66",
+          "value": "hard_blocker"
+        },
+        {
+          "color": "#FFA600",
+          "value": "friction"
+        },
+        {
+          "color": "#4E5185",
+          "value": "mention_only"
+        },
+        {
+          "color": "#99DDB4",
+          "value": "resolved"
+        },
+        {
+          "color": "#995495",
+          "value": "latent"
+        },
+        {
+          "color": "#BC4C96",
+          "value": "insufficient_evidence"
+        },
+        {
+          "color": "#FF5F66",
+          "value": "negative"
+        },
+        {
+          "color": "#FFA600",
+          "value": "mixed"
+        },
+        {
+          "color": "#4E5185",
+          "value": "neutral"
+        },
+        {
+          "color": "#99DDB4",
+          "value": "positive"
+        },
+        {
+          "color": "#FF5F66",
+          "value": "Critical"
+        },
+        {
+          "color": "#FFA600",
+          "value": "Warning"
+        },
+        {
+          "color": "#99DDB4",
+          "value": "Resolved"
+        },
+        {
+          "color": "#4E5185",
+          "value": "Low"
+        },
+        {
+          "color": "#C9CDD3",
+          "value": "Other"
+        }
+      ],
+      "visualizationColors": [
+        "#2272B4",
+        "#FF7054",
+        "#FFA600",
+        "#99DDB4",
+        "#995495",
+        "#4E5185",
+        "#BC4C96"
+      ],
+      "widgetBackgroundColor": {
+        "dark": "#11171C",
+        "light": "#FFFFFF"
+      },
+      "widgetCornerRadius": 8,
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED",
+      "widgetShadow": 10
+    }
+  }
+}

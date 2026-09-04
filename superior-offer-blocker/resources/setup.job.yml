@@ -1,0 +1,38 @@
+# =============================================================================
+# One-time SETUP job. Run this ONCE (or whenever you want to re-seed) BEFORE the
+# pipeline. It creates the supporting objects that the pipeline reads but does
+# not own:
+#   * the two Unity Catalog Volumes (landing zone + seeds),
+#   * the sample transcript batch copied into the landing Volume (so Auto Loader
+#     has something to ingest),
+#   * dim_salesforce_opportunity  (synthetic CRM data — see the notebook),
+#   * dim_code_categories         (the 4A-4F blocker-code catalog),
+#   * prompt_offer_blocker        (the 1-row table holding the large LLM prompt).
+# It is safe to re-run (idempotent: CREATE ... IF NOT EXISTS / overwrite).
+# =============================================================================
+resources:
+  jobs:
+    setup_job:
+      name: offer_blocker_setup
+      tasks:
+        - task_key: setup
+          notebook_task:
+            notebook_path: ../src/setup/setup.py
+            # Passed into the notebook as widgets. files_path points at the
+            # bundle's synced files in the workspace, so the notebook can read
+            # the seed files (prompt text, code-categories CSV, sample JSON).
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+              files_path: ${workspace.file_path}
+        # DABs have no native Genie-space resource, so we provision it here,
+        # idempotently, from the checked-in genie/genie_agent.json.
+        - task_key: genie_space
+          depends_on:
+            - task_key: setup
+          notebook_task:
+            notebook_path: ../src/setup/genie_setup.py
+            base_parameters:
+              files_path: ${workspace.file_path}
+              warehouse_id: ${var.warehouse_id}
+              title: Offer Blocker Analytics

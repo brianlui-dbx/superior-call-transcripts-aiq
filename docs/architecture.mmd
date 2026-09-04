@@ -1,0 +1,62 @@
+flowchart TB
+    subgraph ENTRY["Sources & orchestration"]
+        direction LR
+        JSON["Sales-call<br/>transcript JSON"] --> LANDING["Unity Catalog Volume<br/>landing/transcripts"]
+        LANDING -. "new file" .-> ARRIVAL["File-arrival job"]
+    end
+
+    subgraph BOOTSTRAP["One-time setup"]
+        direction LR
+        SETUP["setup.py"] --> SF["Synthetic Salesforce<br/>opportunities"]
+        SETUP --> QUAL["Qualifier lookup<br/>labels + instructions"]
+        GENIE_SETUP["genie_setup.py"] --> GENIE["Offer Blocker Analytics<br/>Genie agent"]
+    end
+
+    subgraph PLATFORM["Databricks Lakehouse · serverless Spark Declarative Pipeline"]
+        direction LR
+        BRONZE["Bronze<br/>Auto Loader + AUTO CDC"] --> SILVER["Silver<br/>CRM join + dialogue assembly"]
+        SILVER --> GOLD["Gold<br/>blocker intelligence"]
+        SILVER --> ENH["Gold enhancements<br/>call coaching"]
+        GOLD --> ENH
+    end
+
+    AIF["Databricks AI Functions<br/>classify · extract · sentiment · summarize · mask<br/>similarity · fix grammar · query"]
+    EXPLORE["ai_top_drivers<br/>exploration"]
+
+    subgraph EXPERIENCE["Analytics & action"]
+        direction LR
+        TABLES["Governed Delta tables<br/>SQL consumers"]
+        DASH["AI/BI Dashboard<br/>Sales Call Coaching —<br/>Offer Blocker Intelligence"]
+        GENIE_OUT["Curated natural-language<br/>analytics"]
+        DASH -. "Ask Genie" .-> GENIE_OUT
+    end
+
+    LANDING --> BRONZE
+    ARRIVAL --> PLATFORM
+    SF --> SILVER
+    QUAL --> GOLD
+    PLATFORM -. "uses" .-> AIF
+    GOLD -.-> EXPLORE
+    GOLD --> TABLES
+    ENH --> TABLES
+    GOLD --> DASH
+    ENH --> DASH
+    GOLD --> GENIE_OUT
+    ENH --> GENIE_OUT
+    GENIE --> GENIE_OUT
+
+    classDef source fill:#FFF4E5,stroke:#D66B10,color:#242424
+    classDef setup fill:#F5EAF7,stroke:#8E44AD,color:#242424
+    classDef bronze fill:#FCE8D5,stroke:#D66B10,color:#242424
+    classDef silver fill:#E7F1FA,stroke:#2272B4,color:#242424
+    classDef gold fill:#FFF2C7,stroke:#B38B00,color:#242424
+    classDef ai fill:#E8F5EE,stroke:#268A57,color:#242424
+    classDef consume fill:#EEF0F4,stroke:#59636E,color:#242424
+
+    class JSON,LANDING,ARRIVAL source
+    class SETUP,SF,QUAL,GENIE_SETUP,GENIE setup
+    class BRONZE bronze
+    class SILVER silver
+    class GOLD,ENH gold
+    class AIF,EXPLORE ai
+    class TABLES,DASH,GENIE_OUT consume

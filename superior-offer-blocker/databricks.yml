@@ -1,0 +1,85 @@
+# =============================================================================
+# Databricks Asset Bundle (DAB) — Superior Plus Propane "Offer Blocker" POC
+# =============================================================================
+# WHAT THIS PROJECT DOES (for a reader with no prior context):
+#   Sales reps at a propane company make phone calls to potential customers.
+#   Sometimes a customer does NOT accept the offer. The reason they walk away is
+#   called an "offer blocker" (e.g. the price was too high, a fee was unacceptable,
+#   the contract terms didn't fit). This project reads the recorded call
+#   transcripts and, for every sales "opportunity" (one deal, identified by a
+#   Salesforce Opportunity ID), produces a table of coded findings explaining the
+#   blocker(s). It replaces a slow manual "paste-into-ChatGPT" workflow with an
+#   automated, re-runnable Databricks pipeline.
+#
+# HOW IT IS ORGANIZED:
+#   * A Spark Declarative Pipeline (SDP) does bronze -> silver -> gold using
+#     Auto Loader (ingest), SQL transforms, and Databricks AI Functions.
+#   * A one-time setup job creates supporting dimension tables (synthetic
+#     Salesforce data, the blocker-code catalog, and the LLM prompt text).
+#   * Everything is parameterized (see `variables:` below) so nothing sensitive
+#     or environment-specific is hard-coded in the SQL.
+#
+# TIERS (see per-file banners):
+#   [CORE]        = faithfully reproduces the original hand-written Python scripts.
+#   [ENHANCEMENT] = net-new AI capability (objects are suffixed `_enh`).
+# =============================================================================
+
+bundle:
+  name: superior-offer-blocker
+
+# -----------------------------------------------------------------------------
+# Variables: every environment-specific / run-specific value lives here, not in
+# the SQL. Override any of them at deploy time with `--var key=value`.
+# -----------------------------------------------------------------------------
+variables:
+  catalog:
+    description: Unity Catalog catalog that holds all objects for this POC.
+    default: dbw_brlui_stable
+  schema:
+    description: Schema (a.k.a. database) inside the catalog.
+    default: call_transcripts_poc
+  model_endpoint:
+    description: >-
+      Databricks-hosted foundation-model serving endpoint used by ai_query.
+      Swap this to change models with no code change. Verify it exists with
+      `databricks serving-endpoints list`. NOTE: the endpoint must support BATCH
+      inference (some newest pay-per-token endpoints, e.g. claude-sonnet-5, do not
+      yet); claude-sonnet-4 is batch-supported.
+    default: databricks-claude-sonnet-4
+  prompt_version:
+    description: Label recorded in the output's "Version" column (which prompt revision produced the findings).
+    default: v6
+  batch_label:
+    description: Label recorded in the output's "Batch" column (which batch of transcripts was processed).
+    default: B-NY-001
+  region_1:
+    description: First sales region to keep (the analysis is scoped to specific regions).
+    default: New York
+  region_2:
+    description: Second sales region to keep.
+    default: New Jersey
+  input_multiline:
+    description: >-
+      Auto Loader JSON parsing mode. `true` = each file is one JSON array (the demo
+      sample). `false` = JSON Lines (one object per line, the production format).
+    default: "true"
+  warehouse_id:
+    description: SQL warehouse that backs the AI/BI dashboard and the Genie space.
+    default: 50ad3a9993503e5b
+
+# -----------------------------------------------------------------------------
+# Resource files (pipeline + jobs) live under resources/.
+# -----------------------------------------------------------------------------
+include:
+  - resources/*.yml
+
+# -----------------------------------------------------------------------------
+# Deployment targets. `dev` is the default; deploy with:
+#   databricks bundle deploy -t dev -p dbw-brlui-stable
+# -----------------------------------------------------------------------------
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://adb-7405605163137288.8.azuredatabricks.net

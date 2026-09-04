@@ -1,0 +1,65 @@
+flowchart TD
+    subgraph INGEST["Bronze · incremental ingestion"]
+        FILES["Transcript JSON<br/>landing Volume"]
+        RAW["bronze_transcripts_ingest<br/>streaming table"]
+        BRONZE["bronze_transcripts<br/>deduplicated streaming table"]
+        FILES -->|"Auto Loader"| RAW
+        RAW -->|"AUTO CDC · SCD Type 1 on id"| BRONZE
+    end
+
+    subgraph SILVER["Silver · joined and prompt-ready"]
+        SF["dim_salesforce_opportunity<br/>phone → opportunity · stage · region"]
+        JOINED["silver_transcript_sf_joined<br/>normalize phone · join CRM<br/>filter region · number segments"]
+        DIALOGUE["silver_opportunity_dialogue<br/>one ordered dialogue per opportunity"]
+        SF --> JOINED
+        JOINED --> DIALOGUE
+    end
+
+    subgraph BLOCKERS["Gold · offer-blocker analysis"]
+        OPPS["gold_opportunity_enrichment<br/>ai_classify candidate codes<br/>ai_extract quoted + competitor rates"]
+        QUAL["lookup_qualifier_config"]
+        FINDINGS["gold_offer_blockers<br/>ai_classify disposition<br/>ai_classify qualifier<br/>confidence + evidence"]
+        SUMMARY["gold_offer_blocker_summary<br/>final analyst-facing output"]
+        OPPS --> FINDINGS
+        QUAL --> FINDINGS
+        FINDINGS --> SUMMARY
+    end
+
+    subgraph ENH["Gold · coaching enhancements"]
+        CALLS["gold_call_enrichment_enh<br/>tone · topic · entities · summary<br/>PII masking · similarity · grammar"]
+        EMAIL["gold_followup_email_enh<br/>blocker-aware email JSON"]
+    end
+
+    subgraph EXPERIENCE["Consumption"]
+        DASH["Sales Call Coaching —<br/>Offer Blocker Intelligence<br/>4 dashboard pages"]
+        GENIE["Offer Blocker Analytics<br/>curated Genie agent"]
+        EXPLORE["ai_top_drivers exploration<br/>contribution analysis"]
+    end
+
+    BRONZE --> JOINED
+    DIALOGUE --> OPPS
+    JOINED --> CALLS
+    OPPS --> EMAIL
+    FINDINGS --> EMAIL
+
+    SUMMARY --> DASH
+    CALLS --> DASH
+    SUMMARY --> GENIE
+    CALLS --> GENIE
+    EMAIL --> GENIE
+    SUMMARY -.-> EXPLORE
+    DASH -. "Ask Genie" .-> GENIE
+
+    classDef bronze fill:#FFF4E5,stroke:#D66B10,color:#242424
+    classDef silver fill:#E7F1FA,stroke:#2272B4,color:#242424
+    classDef reference fill:#F5EAF7,stroke:#8E44AD,color:#242424
+    classDef gold fill:#FFF2C7,stroke:#B38B00,color:#242424
+    classDef enhance fill:#E8F5EE,stroke:#268A57,color:#242424
+    classDef consume fill:#EEF0F4,stroke:#59636E,color:#242424
+
+    class FILES,RAW,BRONZE bronze
+    class JOINED,DIALOGUE silver
+    class SF,QUAL reference
+    class OPPS,FINDINGS,SUMMARY gold
+    class CALLS,EMAIL enhance
+    class DASH,GENIE,EXPLORE consume
