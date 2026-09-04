@@ -15,7 +15,7 @@
 
 dbutils.widgets.text("files_path", "")     # bundle's synced workspace files root
 dbutils.widgets.text("warehouse_id", "")
-dbutils.widgets.text("title", "Offer Blocker Analytics")
+dbutils.widgets.text("title", "Offer Blocker Analytics_aiq")
 
 FILES_PATH = dbutils.widgets.get("files_path")
 WAREHOUSE_ID = dbutils.widgets.get("warehouse_id")

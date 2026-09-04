@@ -10,7 +10,7 @@
 resources:
   jobs:
     offer_blocker_ingest_job:
-      name: offer_blocker_ingest
+      name: offer_blocker_ingest_aiq
       tasks:
         - task_key: run_pipeline
           pipeline_task:

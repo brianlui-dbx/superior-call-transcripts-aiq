@@ -13,7 +13,7 @@
 resources:
   jobs:
     setup_job:
-      name: offer_blocker_setup
+      name: offer_blocker_setup_aiq
       tasks:
         - task_key: setup
           notebook_task:
@@ -35,4 +35,4 @@ resources:
             base_parameters:
               files_path: ${workspace.file_path}
               warehouse_id: ${var.warehouse_id}
-              title: Offer Blocker Analytics
+              title: Offer Blocker Analytics_aiq

@@ -8,7 +8,7 @@
 resources:
   pipelines:
     offer_blocker_pipeline:
-      name: offer_blocker_poc
+      name: offer_blocker_poc_aiq
       serverless: true          # no cluster to size or manage
       catalog: ${var.catalog}   # where published tables land
       schema: ${var.schema}
