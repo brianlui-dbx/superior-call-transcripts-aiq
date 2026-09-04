@@ -22,6 +22,7 @@ resources:
       configuration:
         catalog: ${var.catalog}
         schema: ${var.schema}
+        model_endpoint: ${var.model_endpoint}
         prompt_version: ${var.prompt_version}
         region_1: ${var.region_1}
         region_2: ${var.region_2}

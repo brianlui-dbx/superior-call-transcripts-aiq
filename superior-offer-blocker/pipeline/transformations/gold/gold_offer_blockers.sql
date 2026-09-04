@@ -1,9 +1,9 @@
 -- WHAT THIS STEP DOES
 --   Explodes silver_opportunity_dialogue to one row per pre-identified candidate code per opportunitiy,
---   then uses ai_classify to determine:
+--   then uses ai_query to determine:
 --     * Disposition (hard_blocker, friction, mention_only, resolved, latent, insufficient_evidence)
 --     * Qualifier (code-specific sub-reason, driven by lookup_qualifier_config lookup)
---   Evidence is extracted from the ai_classify rationale.
+--   Evidence is extracted from the model's rationale/evidence.
 --   Opportunities with zero pre-identified codes are retained as a single row with null codes
 --
 
@@ -11,18 +11,19 @@ CREATE OR REFRESH MATERIALIZED VIEW gold_offer_blockers (
   CONSTRAINT no_disp_error EXPECT(disp_error IS NULL),
   CONSTRAINT no_qual_error EXPECT(qual_error IS NULL)
 ) AS
-WITH exploded AS (SELECT
+WITH exploded AS (
+  SELECT
     d.opportunity_id,
     d.stage_name,
     d.transcript_text,
     d.quoted_rates,
     d._source_file,
     c.code_name
-  FROM
-    gold_opportunity_enrichment d
-    LATERAL VIEW explode_outer(d.code_classification_names) c AS code_name
+  FROM gold_opportunity_enrichment d
+  LATERAL VIEW explode_outer(d.code_classification_names) c AS code_name
 ),
-classified AS (SELECT
+classified AS (
+  SELECT
     e.opportunity_id,
     e.stage_name,
     e.transcript_text,
@@ -30,46 +31,38 @@ classified AS (SELECT
     e._source_file,
     e.code_name,
     -- Disposition: how much did this issue affect the deal?
-    ai_classify(
+    ai_query(
+      '${model_endpoint}',
       concat(
-        '[',
-        coalesce(e.code_name, 'No specific offer blocker code pre-identified'),
-        ']',
-        '\n\n',
-        e.transcript_text
+        p.prompt,
+        '\n\nINSTRUCTIONS:\n',
+        'You are a senior sales operations analyst at Superior Plus Propane analyzing a sales call transcript. Classify the disposition of the offer blocker code identified under the header "CANDIDATE CODE". This code was pre-identified as relevant to the transcript. Determine how much this specific issue affected the deal outcome. Key rules: If the concern dissolved once the rep gave an accurate explanation, classify as resolved. If the REP\'s handling (not the offer itself) was the gap, classify as mention_only. Tiebreaker: any concession/waiver/credit granted after the concern was voiced -> friction. Customer\'s factual premise was wrong and correction ended the issue -> resolved. Customer simply accepted the accurate answer with no concession or drag -> mention_only. In your evidence, include the relevant verbatim customer quote from the transcript.',
+        '\n\nCANDIDATE CODE:\n', coalesce(e.code_name, 'No specific offer blocker code pre-identified'),
+        '\n\nTASK:\nReturn only strict JSON matching the response schema. Do not add prose.',
+        '\n\nTRANSCRIPT:\n', e.transcript_text
       ),
-      '{
-        "hard_blocker": "Deal declined, died, or made conditional on a change to this attribute that was not granted.",
-        "friction": "Deal continued, but this attribute caused stall, escalation, demanded concession, or visible drag on progression.",
-        "mention_only": "Attribute surfaced as a candidate issue but did not affect progression. Most common outcome.",
-        "resolved": "Customer factual premise was WRONG, accurate explanation corrected it, and the concern dissolved entirely.",
-        "latent": "Attribute objectively adverse for this customer, opportunity stalled or ended undetermined, no competing stated cause.",
-        "insufficient_evidence": "Transcript quality prevents determination."
-      }',
-      map(
-        'version', '2.1',
-        'enableConfidenceScores', 'true',
-        'enableRationales', 'true',
-        'instructions',
-        'You are a senior sales operations analyst at Superior Plus Propane analyzing a sales call transcript. Classify the disposition of the offer blocker code identified in brackets at the start of the text. This code was pre-identified as relevant to the transcript. Determine how much this specific issue affected the deal outcome. Key rules: If the concern dissolved once the rep gave an accurate explanation, classify as resolved. If the REP''s handling (not the offer itself) was the gap, classify as mention_only. Tiebreaker: any concession/waiver/credit granted after the concern was voiced -> friction. Customer''s factual premise was wrong and correction ended the issue -> resolved. Customer simply accepted the accurate answer with no concession or drag -> mention_only. In your rationale, include the relevant verbatim customer quote from the transcript.'
-      )
-    ) AS disp_result,
+      responseFormat => '{"type":"json_schema","json_schema":{"name":"disposition","strict":true,"schema":{"type":"object","additionalProperties":false,"required":["disposition","confidence","evidence"],"properties":{"disposition":{"type":"string","enum":["hard_blocker","friction","mention_only","resolved","latent","insufficient_evidence"]},"confidence":{"type":"number","minimum":0,"maximum":1},"evidence":{"type":"string"}}}}}',
+      failOnError => false,
+      modelParameters => named_struct('max_tokens', 1200)
+    ) AS disp_resp,
     -- Qualifier: what specific sub-type within this code?
-    ai_classify(
-      concat('INSTRUCTIONS:\n', cfg.instructions, '\n\nTRANSCRIPT:\n', e.transcript_text),
-      cfg.labels_json,
-      map(
-        'version', '2.1',
-        'enableConfidenceScores', 'true',
-        'enableRationales', 'true',
-        'instructions',
-        'You are a senior sales operations analyst at Superior Plus Propane analyzing a sales call transcript. Classify the qualifier sub-type for the given offer blocker code based on the transcript content (under the header "TRANSCRIPT:")  and instructions (under the header "INSTRUCTIONS:") provided in the text.'
-      )
-    ) AS qual_result
-  FROM
-    exploded e
-      LEFT JOIN lookup_qualifier_config cfg
-        ON left(e.code_name, 2) = cfg.code_prefix
+    ai_query(
+      '${model_endpoint}',
+      concat(
+        p.prompt,
+        '\n\nINSTRUCTIONS:\n', coalesce(cfg.instructions, ''),
+        '\n\nPOSSIBLE_LABELS_JSON:\n', coalesce(cfg.labels_json, '{}'),
+        '\n\nTASK:\nReturn only strict JSON matching the response schema. Do not add prose. Choose the single best qualifier label (string) from POSSIBLE_LABELS_JSON based on the transcript content and provide a brief evidence rationale and numeric confidence in [0,1].',
+        '\n\nTRANSCRIPT:\n', e.transcript_text
+      ),
+      responseFormat => '{"type":"json_schema","json_schema":{"name":"qualifier","strict":true,"schema":{"type":"object","additionalProperties":false,"required":["qualifier","confidence","evidence"],"properties":{"qualifier":{"type":"string"},"confidence":{"type":"number","minimum":0,"maximum":1},"evidence":{"type":"string"}}}}}',
+      failOnError => false,
+      modelParameters => named_struct('max_tokens', 1200)
+    ) AS qual_resp
+  FROM exploded e
+  LEFT JOIN lookup_qualifier_config cfg
+    ON left(e.code_name, 2) = cfg.code_prefix
+  CROSS JOIN (SELECT prompt FROM prompt_offer_blocker LIMIT 1) p
 )
 SELECT
   opportunity_id,
@@ -78,16 +71,15 @@ SELECT
   _source_file,
   left(code_name, 2) AS code,
   code_name,
-  disp_result:response[0]:value::STRING AS disposition,
-  disp_result:response[0]:confidence_score::DOUBLE AS disposition_confidence,
-  disp_result:response[0]:rationale::STRING AS disposition_evidence,
-  qual_result:response[0]:value::STRING AS qualifier,
-  qual_result:response[0]:confidence_score::DOUBLE AS qualifier_confidence,
-  qual_result:response[0]:rationale::STRING AS qualifier_evidence,
-  disp_result:error_message::STRING AS disp_error,
-  qual_result:error_message::STRING AS qual_error
-FROM
-  classified;
+  from_json(disp_resp.result, 'STRUCT<disposition: STRING, confidence: DOUBLE, evidence: STRING>').disposition AS disposition,
+  from_json(disp_resp.result, 'STRUCT<disposition: STRING, confidence: DOUBLE, evidence: STRING>').confidence AS disposition_confidence,
+  from_json(disp_resp.result, 'STRUCT<disposition: STRING, confidence: DOUBLE, evidence: STRING>').evidence AS disposition_evidence,
+  from_json(qual_resp.result, 'STRUCT<qualifier: STRING, confidence: DOUBLE, evidence: STRING>').qualifier AS qualifier,
+  from_json(qual_resp.result, 'STRUCT<qualifier: STRING, confidence: DOUBLE, evidence: STRING>').confidence AS qualifier_confidence,
+  from_json(qual_resp.result, 'STRUCT<qualifier: STRING, confidence: DOUBLE, evidence: STRING>').evidence AS qualifier_evidence,
+  disp_resp.errorMessage::STRING AS disp_error,
+  qual_resp.errorMessage::STRING AS qual_error
+FROM classified;
 
 -- WHAT THIS STEP DOES
 --   Clean up the analysis to match the format of the manual workflow's "AI Output" spreadsheet.

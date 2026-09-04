@@ -37,7 +37,7 @@ variables:
     default: dbw_brlui_stable
   schema:
     description: Schema (a.k.a. database) inside the catalog.
-    default: call_transcripts_poc
+    default: call_transcripts_poc_aiq
   model_endpoint:
     description: >-
       Databricks-hosted foundation-model serving endpoint used by ai_query.
@@ -45,7 +45,7 @@ variables:
       `databricks serving-endpoints list`. NOTE: the endpoint must support BATCH
       inference (some newest pay-per-token endpoints, e.g. claude-sonnet-5, do not
       yet); claude-sonnet-4 is batch-supported.
-    default: databricks-claude-sonnet-4
+    default: databricks-claude-opus-4-8
   prompt_version:
     description: Label recorded in the output's "Version" column (which prompt revision produced the findings).
     default: v6

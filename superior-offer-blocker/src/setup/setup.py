@@ -200,3 +200,21 @@ display(cfg_df)
 # MAGIC %md ## Done
 # MAGIC Supporting objects are ready. Now run the pipeline:
 # MAGIC `databricks bundle run offer_blocker_pipeline -t dev -p dbw-brlui-stable`
+# COMMAND ----------
+
+# DBTITLE 1,Cell X
+# MAGIC %md ## 5. `prompt_offer_blocker` — single-row table with the master prompt text
+# MAGIC Used by all ai_query calls. Stored in UC so SQL can reference it verbatim via concat().
+
+# COMMAND ----------
+
+# Read the seed prompt file from the workspace files and write a 1-row table.
+pr_path = f"{FILES_PATH}/seeds/offer_blocker_prompt_v6.txt"
+with open(pr_path, 'r', encoding='utf-8') as f:
+    prompt_text = f.read()
+from pyspark.sql import Row as _Row
+prompt_df = spark.createDataFrame([_Row(prompt=prompt_text)])
+prompt_df.write.mode('overwrite').option('overwriteSchema', 'true').saveAsTable(
+    f"{CATALOG}.{SCHEMA}.prompt_offer_blocker"
+)
+print(f"wrote prompt_offer_blocker (len={len(prompt_text)} bytes)")
