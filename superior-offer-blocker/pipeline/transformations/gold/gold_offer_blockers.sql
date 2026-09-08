@@ -35,29 +35,25 @@ classified AS (
       '${model_endpoint}',
       concat(
         p.prompt,
-        '\n\nINSTRUCTIONS:\n',
-        'You are a senior sales operations analyst at Superior Plus Propane analyzing a sales call transcript. Classify the disposition of the offer blocker code identified under the header "CANDIDATE CODE". This code was pre-identified as relevant to the transcript. Determine how much this specific issue affected the deal outcome. Key rules: If the concern dissolved once the rep gave an accurate explanation, classify as resolved. If the REP\'s handling (not the offer itself) was the gap, classify as mention_only. Tiebreaker: any concession/waiver/credit granted after the concern was voiced -> friction. Customer\'s factual premise was wrong and correction ended the issue -> resolved. Customer simply accepted the accurate answer with no concession or drag -> mention_only. In your evidence, include the relevant verbatim customer quote from the transcript.',
-        '\n\nCANDIDATE CODE:\n', coalesce(e.code_name, 'No specific offer blocker code pre-identified'),
-        '\n\nTASK:\nReturn only strict JSON matching the response schema. Do not add prose.',
+        '\n\nTASK:\nDetermine the disposition of the single code named under CANDIDATE CODE for the transcript below, applying the disposition definitions and tiebreaker in Section 6. If the code reflects only the rep\'s handling rather than the offer attribute itself, use mention_only. Provide evidence per Section 4 (a verbatim customer quote). Return only strict JSON matching the response schema. Do not add prose.',
         '\n\nTRANSCRIPT:\n', e.transcript_text
       ),
       responseFormat => '{"type":"json_schema","json_schema":{"name":"disposition","strict":true,"schema":{"type":"object","additionalProperties":false,"required":["disposition","confidence","evidence"],"properties":{"disposition":{"type":"string","enum":["hard_blocker","friction","mention_only","resolved","latent","insufficient_evidence"]},"confidence":{"type":"number","minimum":0,"maximum":1},"evidence":{"type":"string"}}}}}',
       failOnError => false,
-      modelParameters => named_struct('max_tokens', 1200)
+      modelParameters => named_struct('temperature', CAST(0.0 AS DOUBLE), 'max_tokens', 1200)
     ) AS disp_resp,
     -- Qualifier: what specific sub-type within this code?
     ai_query(
       '${model_endpoint}',
       concat(
         p.prompt,
-        '\n\nINSTRUCTIONS:\n', coalesce(cfg.instructions, ''),
         '\n\nPOSSIBLE_LABELS_JSON:\n', coalesce(cfg.labels_json, '{}'),
-        '\n\nTASK:\nReturn only strict JSON matching the response schema. Do not add prose. Choose the single best qualifier label (string) from POSSIBLE_LABELS_JSON based on the transcript content and provide a brief evidence rationale and numeric confidence in [0,1].',
+        '\n\nTASK:\nChoose the single best qualifier label (string) from POSSIBLE_LABELS_JSON based on the transcript content, provide a brief evidence rationale and numeric confidence in [0,1]. Return only strict JSON matching the response schema. Do not add prose.',
         '\n\nTRANSCRIPT:\n', e.transcript_text
       ),
       responseFormat => '{"type":"json_schema","json_schema":{"name":"qualifier","strict":true,"schema":{"type":"object","additionalProperties":false,"required":["qualifier","confidence","evidence"],"properties":{"qualifier":{"type":"string"},"confidence":{"type":"number","minimum":0,"maximum":1},"evidence":{"type":"string"}}}}}',
       failOnError => false,
-      modelParameters => named_struct('max_tokens', 1200)
+      modelParameters => named_struct('temperature', CAST(0.0 AS DOUBLE), 'max_tokens', 1200)
     ) AS qual_resp
   FROM exploded e
   LEFT JOIN lookup_qualifier_config cfg
