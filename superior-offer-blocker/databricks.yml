@@ -43,15 +43,11 @@ variables:
       Databricks-hosted foundation-model serving endpoint used by ai_query.
       Swap this to change models with no code change. Verify it exists with
       `databricks serving-endpoints list`. NOTE: the endpoint must support BATCH
-      inference (some newest pay-per-token endpoints, e.g. claude-sonnet-5, do not
-      yet); claude-sonnet-4 is batch-supported.
-    default: databricks-claude-opus-4-8
+      inference
+    default: system.ai.claude-opus-4-8
   prompt_version:
     description: Label recorded in the output's "Version" column (which prompt revision produced the findings).
     default: v6
-  batch_label:
-    description: Label recorded in the output's "Batch" column (which batch of transcripts was processed).
-    default: B-NY-001
   region_1:
     description: First sales region to keep (the analysis is scoped to specific regions).
     default: New York
