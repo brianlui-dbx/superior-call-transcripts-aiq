@@ -40,7 +40,7 @@ classified AS (
       ),
       responseFormat => '{"type":"json_schema","json_schema":{"name":"disposition","strict":true,"schema":{"type":"object","additionalProperties":false,"required":["disposition","confidence","evidence"],"properties":{"disposition":{"type":"string","enum":["hard_blocker","friction","mention_only","resolved","latent","insufficient_evidence"]},"confidence":{"type":"number","minimum":0,"maximum":1},"evidence":{"type":"string"}}}}}',
       failOnError => false,
-      modelParameters => named_struct('temperature', CAST(0.0 AS DOUBLE), 'max_tokens', 1200)
+      modelParameters => named_struct('max_tokens', 1200)
     ) AS disp_resp,
     -- Qualifier: what specific sub-type within this code?
     ai_query(
@@ -53,7 +53,7 @@ classified AS (
       ),
       responseFormat => '{"type":"json_schema","json_schema":{"name":"qualifier","strict":true,"schema":{"type":"object","additionalProperties":false,"required":["qualifier","confidence","evidence"],"properties":{"qualifier":{"type":"string"},"confidence":{"type":"number","minimum":0,"maximum":1},"evidence":{"type":"string"}}}}}',
       failOnError => false,
-      modelParameters => named_struct('temperature', CAST(0.0 AS DOUBLE), 'max_tokens', 1200)
+      modelParameters => named_struct('max_tokens', 1200)
     ) AS qual_resp
   FROM exploded e
   LEFT JOIN lookup_qualifier_config cfg

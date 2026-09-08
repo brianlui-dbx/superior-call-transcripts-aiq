@@ -29,7 +29,7 @@ scored AS (
       ),
       responseFormat => '{"type":"json_schema","json_schema":{"name":"offer_blocker_codes","strict":true,"schema":{"type":"object","additionalProperties":false,"required":["codes"],"properties":{"codes":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["name","confidence","rationale"],"properties":{"name":{"type":"string","enum":["4A. Rate/price uncompetitive","4B. Ancillary fees barrier","4C. Commercial model mismatch","4D. Contract/transaction mechanics","4E. Availability/serviceability gap","4F. Promotion ineligibility"]},"confidence":{"type":"number","minimum":0,"maximum":1},"rationale":{"type":"string"}}}}}}}}',
       failOnError => false,
-      modelParameters => named_struct('temperature', CAST(0.0 AS DOUBLE), 'max_tokens', 2000)
+      modelParameters => named_struct('max_tokens', 2000)
     ) AS cls_resp,
     -- Quoted and competitor rates
     ai_query(
@@ -41,7 +41,7 @@ scored AS (
       ),
       responseFormat => '{"type":"json_schema","json_schema":{"name":"rates_extract","strict":true,"schema":{"type":"object","additionalProperties":false,"required":["quoted_unit_rate","competitor_or_current_supplier_rate"],"properties":{"quoted_unit_rate":{"type":"array","items":{"type":"object","additionalProperties":false,"required":[],"properties":{"rate_type":{"type":"string","enum":["dual","fixed","variable"]},"per_unit":{"type":"string"},"fixed_amount":{"type":"number"},"variable_amount":{"type":"number"},"amount":{"type":"number"}}}},"competitor_or_current_supplier_rate":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["amount","label"],"properties":{"amount":{"type":"number"},"label":{"type":"string","enum":["current_supplier","competitor","generic"]},"per_unit":{"type":"string"}}}}}}}}',
       failOnError => false,
-      modelParameters => named_struct('temperature', CAST(0.0 AS DOUBLE), 'max_tokens', 2000)
+      modelParameters => named_struct('max_tokens', 2000)
     ) AS ext_resp
   FROM base b CROSS JOIN prompt_src p
 )
