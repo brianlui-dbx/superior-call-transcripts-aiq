@@ -28,40 +28,9 @@ The solution:
 
 ## Current architecture
 
-![System Architecture](docs/architecture.png)
+![System Architecture](docs/architecture.svg)
 
-```text
-Transcript JSON
-    │
-    ▼
-bronze_transcripts_ingest ──AUTO CDC──▶ bronze_transcripts
-                                                │
-dim_salesforce_opportunity ─────────────────────┤
-                                                ▼
-                               silver_transcript_sf_joined
-                                                │
-                                                ▼
-                               silver_opportunity_dialogue
-                                                │
-                                                ▼
-                               gold_opportunity_enrichment
-                                  │  ai_query: codes 4A–4F
-                                  │  ai_query: quoted/competitor rates
-                                  ▼
-                                  gold_offer_blockers
-                                  │  ai_query: disposition
-lookup_qualifier_config ──────────┤  ai_query: qualifier
-                                  ▼
-                           gold_offer_blocker_summary
-
-(The CORE gold transforms call a single configurable ${model_endpoint}
-via ai_query, seeding each request with the prompt_offer_blocker text.)
-
-Enhancements:
-  silver_transcript_sf_joined ──▶ gold_call_enrichment_enh
-  gold_opportunity_enrichment ──▶ gold_followup_email_enh
-```
-
+### Data Flow
 ![Detailed Data Flow](docs/data_flow.png)
 
 ### Pipeline datasets
